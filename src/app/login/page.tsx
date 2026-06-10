@@ -268,22 +268,6 @@ function LoginForm() {
           </Link>
         </div>
 
-        {/* Info panel */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.02)',
-          border: '1px solid var(--glass-border)',
-          padding: '0.65rem 0.75rem',
-          borderRadius: '8px',
-          fontSize: '0.75rem',
-          color: 'var(--foreground-muted)'
-        }}>
-          <strong>Demo credentials (Mock Mode):</strong>
-          <ul style={{ listStyleType: 'none', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <li>• Admin: <code>admin@aether.com</code> (password: <code>admin123</code>)</li>
-            <li>• Trainee: Use any email registered during sign up.</li>
-          </ul>
-        </div>
-
       </div>
     </div>
   );
