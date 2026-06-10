@@ -9,10 +9,11 @@ interface StreakCardProps {
 }
 
 function StreakCardInner({ streak, userName }: StreakCardProps) {
-  const { currentStreak, longestStreak, lastActiveDate } = streak;
+  const { currentStreak, longestStreak, lastActiveDate, isFrozen } = streak;
 
   // Determine fire flame scale and intensity based on streak days
   const getFlameScale = () => {
+    if (isFrozen) return 1.1;
     if (currentStreak === 0) return 0.8;
     if (currentStreak < 5) return 1.0;
     if (currentStreak < 15) return 1.2;
@@ -20,6 +21,7 @@ function StreakCardInner({ streak, userName }: StreakCardProps) {
   };
 
   const getFlameColor = () => {
+    if (isFrozen) return '#38bdf8'; // Frozen blue color
     if (currentStreak === 0) return '#64748b'; // Cold grey
     if (currentStreak < 3) return '#f97316'; // Warm orange
     if (currentStreak < 10) return '#f97316'; // Vivid orange
@@ -27,6 +29,9 @@ function StreakCardInner({ streak, userName }: StreakCardProps) {
   };
 
   const getMotivationalMessage = () => {
+    if (isFrozen) {
+      return `Your streak is currently frozen by the administrator! No stress — your progress is safe until you log your next activity. ❄️`;
+    }
     if (currentStreak === 0) {
       return `Start your learning streak today! Log an activity to light the fire.`;
     }
@@ -50,8 +55,8 @@ function StreakCardInner({ streak, userName }: StreakCardProps) {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Background Glow when streak is active */}
-      {currentStreak > 0 && (
+      {/* Background Glow when streak is active or frozen */}
+      {(currentStreak > 0 || isFrozen) && (
         <div style={{
           position: 'absolute',
           top: '-50%',
@@ -59,26 +64,32 @@ function StreakCardInner({ streak, userName }: StreakCardProps) {
           width: '200px',
           height: '200px',
           borderRadius: '50%',
-          background: 'radial-gradient(circle, var(--streak-glow) 0%, transparent 70%)',
+          background: isFrozen 
+            ? 'radial-gradient(circle, rgba(56, 189, 248, 0.3) 0%, transparent 70%)'
+            : 'radial-gradient(circle, var(--streak-glow) 0%, transparent 70%)',
           filter: 'blur(30px)',
           zIndex: 0,
           pointerEvents: 'none'
         }} />
       )}
 
-      {/* Flame Icon visual container */}
+      {/* Flame / Snowflake Icon visual container */}
       <div className="flex-center" style={{
         position: 'relative',
         zIndex: 1,
         width: '100px',
         height: '100px',
         borderRadius: '50%',
-        background: currentStreak > 0 ? 'rgba(249, 115, 22, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-        border: `1px solid ${currentStreak > 0 ? 'rgba(249, 115, 22, 0.2)' : 'var(--glass-border)'}`,
+        background: isFrozen
+          ? 'rgba(56, 189, 248, 0.08)'
+          : (currentStreak > 0 ? 'rgba(249, 115, 22, 0.08)' : 'rgba(255, 255, 255, 0.02)'),
+        border: `1px solid ${isFrozen
+          ? 'rgba(56, 189, 248, 0.3)'
+          : (currentStreak > 0 ? 'rgba(249, 115, 22, 0.2)' : 'var(--glass-border)')}`,
         transition: 'var(--transition-smooth)',
       }}>
         <div
-          className={currentStreak > 0 ? 'streak-flame-glow' : ''}
+          className={isFrozen ? 'streak-freeze-glow' : (currentStreak > 0 ? 'streak-flame-glow' : '')}
           style={{
             transform: `scale(${getFlameScale()})`,
             transition: 'var(--transition-smooth)',
@@ -93,14 +104,16 @@ function StreakCardInner({ streak, userName }: StreakCardProps) {
             width="48"
             height="48"
             viewBox="0 0 24 24"
-            fill={currentStreak > 0 ? 'url(#flameGradient)' : 'none'}
-            stroke={currentStreak > 0 ? 'none' : 'currentColor'}
-            strokeWidth="1.5"
+            fill={isFrozen ? 'none' : (currentStreak > 0 ? 'url(#flameGradient)' : 'none')}
+            stroke={isFrozen || currentStreak === 0 ? 'currentColor' : 'none'}
+            strokeWidth={isFrozen ? '1.8' : '1.5'}
             strokeLinecap="round"
             strokeLinejoin="round"
             style={{
               color: getFlameColor(),
-              filter: currentStreak > 0 ? 'drop-shadow(0 4px 8px rgba(249, 115, 22, 0.3))' : 'none',
+              filter: isFrozen
+                ? 'drop-shadow(0 4px 8px rgba(56, 189, 248, 0.3))'
+                : (currentStreak > 0 ? 'drop-shadow(0 4px 8px rgba(249, 115, 22, 0.3))' : 'none'),
             }}
           >
             <defs>
@@ -110,8 +123,16 @@ function StreakCardInner({ streak, userName }: StreakCardProps) {
                 <stop offset="100%" stopColor="#facc15" />
               </linearGradient>
             </defs>
-            <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path d="M15 11a3 3 0 11-6 0c0-1.657 1-3 2.5-4.5V11h3.5z" />
+            {isFrozen ? (
+              // Snowflake path
+              <path d="M12 2v20M2 12h20M5.636 5.636l12.728 12.728M5.636 18.364L18.364 5.636M12 5l3 3m-3-3L9 8m3 11l3-3m-3 3l-3-3M5 12l3 3m-3-3l3-3m11 3l-3 3m3-3l-3-3" />
+            ) : (
+              // Flame paths
+              <>
+                <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path d="M15 11a3 3 0 11-6 0c0-1.657 1-3 2.5-4.5V11h3.5z" />
+              </>
+            )}
           </svg>
         </div>
       </div>
@@ -127,12 +148,28 @@ function StreakCardInner({ streak, userName }: StreakCardProps) {
               <span style={{
                 fontSize: '2.5rem',
                 fontWeight: 800,
-                color: currentStreak > 0 ? 'var(--streak-start)' : 'var(--foreground)',
-                textShadow: currentStreak > 0 ? '0 0 10px rgba(249, 115, 22, 0.2)' : 'none'
+                color: isFrozen ? 'var(--primary)' : (currentStreak > 0 ? 'var(--streak-start)' : 'var(--foreground)'),
+                textShadow: isFrozen ? '0 0 10px rgba(56, 189, 248, 0.2)' : (currentStreak > 0 ? '0 0 10px rgba(249, 115, 22, 0.2)' : 'none')
               }}>
                 {currentStreak}
               </span>
               <span style={{ fontSize: '0.9rem', color: 'var(--foreground-muted)', fontWeight: 600 }}>days</span>
+              {isFrozen && (
+                <span style={{
+                  fontSize: '0.7rem',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  color: 'var(--primary)',
+                  fontWeight: 700,
+                  marginLeft: '0.5rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  alignSelf: 'center'
+                }}>
+                  FROZEN ❄️
+                </span>
+              )}
             </div>
           </div>
 

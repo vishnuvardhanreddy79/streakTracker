@@ -7,6 +7,10 @@ CREATE TABLE IF NOT EXISTS profiles (
     email VARCHAR(255),
     avatar_url VARCHAR(512),
     is_admin BOOLEAN DEFAULT FALSE,
+    current_streak INTEGER NOT NULL DEFAULT 0,
+    longest_streak INTEGER NOT NULL DEFAULT 0,
+    streak_frozen BOOLEAN NOT NULL DEFAULT FALSE,
+    last_active_date DATE DEFAULT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 

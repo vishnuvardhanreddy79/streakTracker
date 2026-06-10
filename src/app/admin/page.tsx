@@ -10,6 +10,7 @@ import {
   adminDecreaseStreak,
   adminRemoveStreak,
   adminSendNotification,
+  adminToggleFreezeStreak,
 } from '../../lib/db';
 import { Profile, Streak, Activity } from '../../types';
 
@@ -104,6 +105,18 @@ export default function AdminDashboard() {
     } finally {
       setActionLoading(null);
       setConfirmReset(null);
+    }
+  }, [loadData]);
+
+  const handleToggleFreeze = useCallback(async (userId: string, currentFrozen: boolean) => {
+    setActionLoading(userId);
+    try {
+      await adminToggleFreezeStreak(userId, !currentFrozen);
+      await loadData();
+    } catch (err) {
+      console.error('Error toggling freeze streak:', err);
+    } finally {
+      setActionLoading(null);
     }
   }, [loadData]);
 
@@ -280,15 +293,31 @@ export default function AdminDashboard() {
                                 gap: '3px',
                                 padding: '2px 8px',
                                 borderRadius: '12px',
-                                background: 'rgba(249, 115, 22, 0.12)',
-                                border: '1px solid rgba(249, 115, 22, 0.25)',
-                                color: 'var(--streak-start)',
+                                background: user.streak.isFrozen ? 'rgba(56, 189, 248, 0.12)' : 'rgba(249, 115, 22, 0.12)',
+                                border: user.streak.isFrozen ? '1px solid rgba(56, 189, 248, 0.25)' : '1px solid rgba(249, 115, 22, 0.25)',
+                                color: user.streak.isFrozen ? 'var(--primary)' : 'var(--streak-start)',
                                 fontWeight: 700
                               }}>
-                                🔥 {user.streak.currentStreak}
+                                {user.streak.isFrozen ? '❄️' : '🔥'} {user.streak.currentStreak}
                               </span>
                             ) : (
-                              <span style={{ color: 'var(--foreground-dark)' }}>0</span>
+                              user.streak.isFrozen ? (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  background: 'rgba(56, 189, 248, 0.12)',
+                                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                                  color: 'var(--primary)',
+                                  fontWeight: 700
+                                }}>
+                                  ❄️ 0
+                                </span>
+                              ) : (
+                                <span style={{ color: 'var(--foreground-dark)' }}>0</span>
+                              )
                             )}
                           </td>
                           <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center', fontWeight: 600, color: 'var(--success)' }}>
@@ -331,6 +360,18 @@ export default function AdminDashboard() {
                                 title="Decrease streak"
                               >
                                 ➖
+                              </button>
+                              <button
+                                onClick={() => handleToggleFreeze(user.id, !!user.streak.isFrozen)}
+                                disabled={actionLoading === user.id}
+                                className={`admin-action-btn`}
+                                style={{
+                                  background: user.streak.isFrozen ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                                  border: user.streak.isFrozen ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
+                                }}
+                                title={user.streak.isFrozen ? "Unfreeze streak" : "Freeze streak"}
+                              >
+                                {user.streak.isFrozen ? '❄️' : '🔥'}
                               </button>
                               <button
                                 onClick={() => setConfirmReset(user.id)}

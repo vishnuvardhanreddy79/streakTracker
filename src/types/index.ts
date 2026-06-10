@@ -5,6 +5,10 @@ export interface Profile {
   avatar_url: string | null;
   is_admin: boolean;
   created_at: string;
+  current_streak?: number;
+  longest_streak?: number;
+  streak_frozen?: boolean;
+  last_active_date?: string | null;
 }
 
 export interface Activity {
@@ -22,6 +26,7 @@ export interface Streak {
   currentStreak: number;
   longestStreak: number;
   lastActiveDate: string | null;
+  isFrozen?: boolean;
 }
 
 export interface UserProgress {
