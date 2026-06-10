@@ -24,9 +24,20 @@ CREATE TABLE IF NOT EXISTS activities (
     UNIQUE (user_id, date)
 );
 
+-- Notifications table - stores messages and notifications sent to trainees
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    from_admin BOOLEAN DEFAULT TRUE,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
 -- Enable Row Level Security (RLS)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- Policies (allow read and write access for authenticated actions)
 CREATE POLICY "Allow public read profiles" ON profiles FOR SELECT USING (true);
@@ -37,3 +48,8 @@ CREATE POLICY "Allow public read activities" ON activities FOR SELECT USING (tru
 CREATE POLICY "Allow public insert activities" ON activities FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update activities" ON activities FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete activities" ON activities FOR DELETE USING (true);
+
+CREATE POLICY "Allow public read notifications" ON notifications FOR SELECT USING (true);
+CREATE POLICY "Allow public insert notifications" ON notifications FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update notifications" ON notifications FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete notifications" ON notifications FOR DELETE USING (true);

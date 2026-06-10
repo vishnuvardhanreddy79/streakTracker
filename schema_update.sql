@@ -3,6 +3,7 @@
 -- All existing local entries on Supabase will be cleared.
 
 DROP TABLE IF EXISTS activities CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS profiles CASCADE;
 
 -- Recreate Profiles table linked to auth.users
@@ -29,9 +30,20 @@ CREATE TABLE activities (
     UNIQUE (user_id, date)
 );
 
+-- Create Notifications table
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    from_admin BOOLEAN DEFAULT TRUE,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
 -- Enable Row Level Security (RLS)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- Enable public select/insert/update policies
 CREATE POLICY "Allow public read profiles" ON profiles FOR SELECT USING (true);
@@ -42,3 +54,8 @@ CREATE POLICY "Allow public read activities" ON activities FOR SELECT USING (tru
 CREATE POLICY "Allow public insert activities" ON activities FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update activities" ON activities FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete activities" ON activities FOR DELETE USING (true);
+
+CREATE POLICY "Allow public read notifications" ON notifications FOR SELECT USING (true);
+CREATE POLICY "Allow public insert notifications" ON notifications FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update notifications" ON notifications FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete notifications" ON notifications FOR DELETE USING (true);
