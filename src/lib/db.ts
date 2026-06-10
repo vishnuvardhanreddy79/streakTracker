@@ -45,6 +45,12 @@ export function getLocalDateString(date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+// Helper: Parse YYYY-MM-DD string to local Date object (prevents timezone shifts)
+export function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 // ─── Dynamic Streak Calculator ──────────────────────────────────────────────
 export function calculateStreak(activities: Activity[]): Streak {
   if (activities.length === 0) {
@@ -53,7 +59,7 @@ export function calculateStreak(activities: Activity[]): Streak {
 
   // Extract and sort unique dates (YYYY-MM-DD) descending
   const activeDates = Array.from(new Set(activities.map(a => a.date))).sort(
-    (a, b) => new Date(b).getTime() - new Date(a).getTime()
+    (a, b) => parseLocalDate(b).getTime() - parseLocalDate(a).getTime()
   );
 
   const todayStr = getLocalDateString();
@@ -67,7 +73,7 @@ export function calculateStreak(activities: Activity[]): Streak {
   // If the last active date is today or yesterday, check current streak
   if (latestActiveDate === todayStr || latestActiveDate === yesterdayStr) {
     currentStreak = 1;
-    const expectedDate = new Date(latestActiveDate);
+    const expectedDate = parseLocalDate(latestActiveDate);
 
     for (let i = 1; i < activeDates.length; i++) {
       expectedDate.setDate(expectedDate.getDate() - 1);
@@ -88,7 +94,7 @@ export function calculateStreak(activities: Activity[]): Streak {
   let previousDate: Date | null = null;
 
   for (const dateStr of sortedDatesAsc) {
-    const currentDate = new Date(dateStr);
+    const currentDate = parseLocalDate(dateStr);
     if (!previousDate) {
       runningStreak = 1;
     } else {
@@ -527,28 +533,46 @@ export async function getAdminDashboardData() {
 
 /**
  * Admin: Increase a user's streak by adding activity records for consecutive days.
- * Inserts `days` number of new activity entries preceding the user's latest active date (or from today).
+ * Inserts `days` number of new activity entries extending the user's current active streak backwards.
+ * Ensures the new activities connect directly to their current active chain or starts today if inactive.
  */
 export async function adminIncreaseStreak(userId: string, days: number): Promise<void> {
   invalidateCache();
 
+  // Fetch all activities for this user to calculate current streak
+  let userActivities: Activity[] = [];
   if (isSupabaseConfigured && supabase) {
-    // Fetch latest activity date for this user
-    const { data: latestAct } = await supabase
+    const { data } = await supabase
       .from('activities')
-      .select('date')
-      .eq('user_id', userId)
-      .order('date', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .select('*')
+      .eq('user_id', userId);
+    userActivities = data || [];
+  } else {
+    const local = getLocalStorageData();
+    userActivities = local.activities.filter(a => a.user_id === userId);
+  }
 
-    const startDate = latestAct ? new Date(latestAct.date) : new Date();
+  // Compute current streak stats to find where to append dates
+  const { currentStreak, lastActiveDate } = calculateStreak(userActivities);
 
-    for (let i = 1; i <= days; i++) {
-      const d = new Date(startDate);
-      d.setDate(d.getDate() + i);
-      const dateStr = getLocalDateString(d);
+  // We want to insert 'days' number of activities extending the streak backwards.
+  // If currentStreak > 0, we append starting from (lastActiveDate - currentStreak days) backwards.
+  // If currentStreak === 0, we append starting from today backwards.
+  const datesToInsert: string[] = [];
+  const anchorDate = (currentStreak > 0 && lastActiveDate)
+    ? parseLocalDate(lastActiveDate)
+    : new Date();
 
+  const startOffset = currentStreak > 0 ? currentStreak : 0;
+
+  for (let i = 0; i < days; i++) {
+    const d = new Date(anchorDate);
+    d.setDate(d.getDate() - (startOffset + i));
+    datesToInsert.push(getLocalDateString(d));
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    for (const dateStr of datesToInsert) {
       // Check if activity already exists for that date
       const { data: existing } = await supabase
         .from('activities')
@@ -573,19 +597,7 @@ export async function adminIncreaseStreak(userId: string, days: number): Promise
 
   // LocalStorage fallback
   const local = getLocalStorageData();
-  const userActivities = local.activities
-    .filter(a => a.user_id === userId)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  const startDate = userActivities.length > 0
-    ? new Date(userActivities[0].date)
-    : new Date();
-
-  for (let i = 1; i <= days; i++) {
-    const d = new Date(startDate);
-    d.setDate(d.getDate() + i);
-    const dateStr = getLocalDateString(d);
-
+  for (const dateStr of datesToInsert) {
     const exists = local.activities.some(a => a.user_id === userId && a.date === dateStr);
     if (!exists) {
       local.activities.push({
@@ -605,41 +617,59 @@ export async function adminIncreaseStreak(userId: string, days: number): Promise
 }
 
 /**
- * Admin: Decrease a user's streak by removing the most recent `days` activity records.
+ * Admin: Decrease a user's streak by removing the oldest `days` of their current active streak.
+ * This shortens their active streak while keeping the latest active date intact.
  */
 export async function adminDecreaseStreak(userId: string, days: number): Promise<void> {
   invalidateCache();
 
+  // Fetch all activities for this user to calculate current streak
+  let userActivities: Activity[] = [];
   if (isSupabaseConfigured && supabase) {
-    const { data: recentActs } = await supabase
+    const { data } = await supabase
       .from('activities')
-      .select('id, date')
-      .eq('user_id', userId)
-      .order('date', { ascending: false })
-      .limit(days);
+      .select('*')
+      .eq('user_id', userId);
+    userActivities = data || [];
+  } else {
+    const local = getLocalStorageData();
+    userActivities = local.activities.filter(a => a.user_id === userId);
+  }
 
-    if (recentActs && recentActs.length > 0) {
-      const ids = recentActs.map(a => a.id);
-      await supabase.from('activities').delete().in('id', ids);
+  // Compute current streak to find out which days to remove
+  const { currentStreak, lastActiveDate } = calculateStreak(userActivities);
+
+  if (currentStreak === 0 || !lastActiveDate) {
+    return; // Nothing to decrease
+  }
+
+  const daysToClear = Math.min(currentStreak, days);
+  const datesToDelete: string[] = [];
+  const anchorDate = parseLocalDate(lastActiveDate);
+
+  // We delete the oldest days of the current streak to shorten it without breaking the front of the streak
+  for (let i = 0; i < daysToClear; i++) {
+    const d = new Date(anchorDate);
+    d.setDate(d.getDate() - (currentStreak - 1 - i));
+    datesToDelete.push(getLocalDateString(d));
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    if (datesToDelete.length > 0) {
+      await supabase
+        .from('activities')
+        .delete()
+        .eq('user_id', userId)
+        .in('date', datesToDelete);
     }
     return;
   }
 
   // LocalStorage fallback
   const local = getLocalStorageData();
-  const userActivities = local.activities
-    .filter(a => a.user_id === userId)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  // Get unique dates to remove
-  const datesToRemove = new Set<string>();
-  for (const act of userActivities) {
-    if (datesToRemove.size >= days) break;
-    datesToRemove.add(act.date);
-  }
-
+  const deleteSet = new Set(datesToDelete);
   local.activities = local.activities.filter(
-    a => !(a.user_id === userId && datesToRemove.has(a.date))
+    a => !(a.user_id === userId && deleteSet.has(a.date))
   );
 
   saveLocalStorageData(local.profiles, local.activities);
