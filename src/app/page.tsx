@@ -9,6 +9,9 @@ import {
   checkSupabaseStatus,
   getSessionProfile,
   logoutUser,
+  consumeStreakFreeze,
+  updateProfileAvatar,
+  uploadWorkImage,
 } from '../lib/db';
 import StreakCard from '../components/StreakCard';
 import Heatmap from '../components/Heatmap';
@@ -66,6 +69,52 @@ export default function Home() {
     await logActivity(currentUser.id, date, count, category, notes, imageUrl);
     await loadUserProgress(currentUser.id);
   }, [currentUser, loadUserProgress]);
+
+  const handleUseFreeze = useCallback(async () => {
+    if (!currentUser) return;
+    await consumeStreakFreeze(currentUser.id);
+    await loadUserProgress(currentUser.id);
+  }, [currentUser, loadUserProgress]);
+
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+
+  const handleAvatarUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUser) return;
+
+    // Validate format (.jpg, .jpeg, .png, .webp, .gif)
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const isValid = allowedExts.includes(fileExt || '') || allowedTypes.includes(file.type);
+    
+    if (!isValid) {
+      setAvatarError('Only JPG, PNG, WEBP, or GIF are allowed');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarError('Avatar must be under 2MB');
+      return;
+    }
+
+    setAvatarError('');
+    setAvatarUploading(true);
+
+    try {
+      const uploadedUrl = await uploadWorkImage(file, currentUser.id);
+      await updateProfileAvatar(currentUser.id, uploadedUrl);
+      
+      // Update local user state immediately
+      setCurrentUser(prev => prev ? { ...prev, avatar_url: uploadedUrl } : null);
+    } catch (err) {
+      console.error('Error uploading avatar:', err);
+      setAvatarError('Failed to upload profile picture.');
+    } finally {
+      setAvatarUploading(false);
+    }
+  }, [currentUser]);
 
   const handleSignOut = useCallback(async () => {
     await logoutUser();
@@ -156,10 +205,10 @@ export default function Home() {
         {/* Left Column - User Profile Info */}
         <section style={{ height: 'fit-content' }}>
           <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', alignItems: 'center', textAlign: 'center' }}>
-            <div style={{ position: 'relative' }}>
+             <div style={{ position: 'relative' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={currentUser?.avatar_url || ''}
+                src={currentUser?.avatar_url || (currentUser?.name ? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(currentUser.name)}` : '')}
                 alt={currentUser?.name}
                 style={{
                   width: '90px',
@@ -186,6 +235,37 @@ export default function Home() {
             <div>
               <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>{currentUser?.name}</h2>
               <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', marginTop: '0.25rem' }}>{currentUser?.email}</p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+              <label style={{
+                fontSize: '0.75rem',
+                color: 'var(--primary)',
+                cursor: avatarUploading ? 'not-allowed' : 'pointer',
+                border: '1px solid rgba(14, 165, 233, 0.3)',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                background: 'rgba(14, 165, 233, 0.05)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'var(--transition-smooth)',
+                opacity: avatarUploading ? 0.7 : 1,
+              }}>
+                <span>{avatarUploading ? '⏳ Uploading...' : '📷 Update DP'}</span>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,.gif"
+                  onChange={handleAvatarUpload}
+                  disabled={avatarUploading}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              {avatarError && (
+                <span style={{ fontSize: '0.7rem', color: 'var(--danger)', marginTop: '4px' }}>
+                  {avatarError}
+                </span>
+              )}
             </div>
 
             <div style={{ width: '100%', borderTop: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8rem', textAlign: 'left', color: 'var(--foreground-muted)', paddingTop: '1.25rem' }}>
@@ -236,6 +316,10 @@ export default function Home() {
                 <StreakCard
                   streak={userProgress.streak}
                   userName={currentUser.name}
+                  streakFreezes={userProgress.profile.streak_freezes}
+                  onUseFreeze={handleUseFreeze}
+                  activities={userProgress.activities}
+                  freezeDates={userProgress.freezeDates}
                 />
                 <ActivityForm
                   userId={currentUser.id}
@@ -248,6 +332,7 @@ export default function Home() {
               <Heatmap
                 activities={userProgress.activities}
                 userName={currentUser.name}
+                freezeDates={userProgress.freezeDates}
               />
 
               {/* Row 3: BarGraph breakdown */}

@@ -11,6 +11,7 @@ import {
   adminRemoveStreak,
   adminSendNotification,
   adminToggleFreezeStreak,
+  adminAdjustStreakFreezes,
 } from '../../lib/db';
 import { Profile, Streak, Activity } from '../../types';
 
@@ -115,6 +116,18 @@ export default function AdminDashboard() {
       await loadData();
     } catch (err) {
       console.error('Error toggling freeze streak:', err);
+    } finally {
+      setActionLoading(null);
+    }
+  }, [loadData]);
+
+  const handleAdjustFreezes = useCallback(async (userId: string, amount: number) => {
+    setActionLoading(userId);
+    try {
+      await adminAdjustStreakFreezes(userId, amount);
+      await loadData();
+    } catch (err) {
+      console.error('Error adjusting streak freezes:', err);
     } finally {
       setActionLoading(null);
     }
@@ -249,13 +262,14 @@ export default function AdminDashboard() {
                     <th style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>User</th>
                     <th style={{ padding: '0.75rem 0.5rem', fontWeight: 600, textAlign: 'center' }}>Streak</th>
                     <th style={{ padding: '0.75rem 0.5rem', fontWeight: 600, textAlign: 'center' }}>Best</th>
+                    <th style={{ padding: '0.75rem 0.5rem', fontWeight: 600, textAlign: 'center' }}>Freezes ❄️</th>
                     <th style={{ padding: '0.75rem 0.5rem', fontWeight: 600, textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {trainees.length === 0 ? (
                     <tr>
-                      <td colSpan={4} style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--foreground-dark)' }}>
+                      <td colSpan={5} style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--foreground-dark)' }}>
                         No trainee profiles registered yet.
                       </td>
                     </tr>
@@ -323,6 +337,9 @@ export default function AdminDashboard() {
                           <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center', fontWeight: 600, color: 'var(--success)' }}>
                             {user.streak.longestStreak}
                           </td>
+                          <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center', fontWeight: 600, color: '#38bdf8' }}>
+                            {user.streak_freezes ?? 0}
+                          </td>
                           <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center' }}>
                             <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap' }}>
                               {/* Days input */}
@@ -362,6 +379,24 @@ export default function AdminDashboard() {
                                 ➖
                               </button>
                               <button
+                                onClick={() => handleAdjustFreezes(user.id, streakDays[user.id] || 1)}
+                                disabled={actionLoading === user.id}
+                                className="admin-action-btn admin-action-btn--primary"
+                                title="Grant freezes"
+                                style={{ color: '#38bdf8' }}
+                              >
+                                ❄️➕
+                              </button>
+                              <button
+                                onClick={() => handleAdjustFreezes(user.id, -(streakDays[user.id] || 1))}
+                                disabled={actionLoading === user.id}
+                                className="admin-action-btn admin-action-btn--warning"
+                                title="Deduct freezes"
+                                style={{ color: '#38bdf8' }}
+                              >
+                                ❄️➖
+                              </button>
+                              <button
                                 onClick={() => handleToggleFreeze(user.id, !!user.streak.isFrozen)}
                                 disabled={actionLoading === user.id}
                                 className={`admin-action-btn`}
@@ -395,7 +430,7 @@ export default function AdminDashboard() {
                         {/* Reset Confirmation Row */}
                         {confirmReset === user.id && (
                           <tr>
-                            <td colSpan={4} style={{ padding: '0.5rem' }}>
+                            <td colSpan={5} style={{ padding: '0.5rem' }}>
                               <div className="animate-fade-in" style={{
                                 background: 'rgba(239, 68, 68, 0.06)',
                                 border: '1px solid rgba(239, 68, 68, 0.2)',
@@ -441,7 +476,7 @@ export default function AdminDashboard() {
                         {/* Notification Composer Row */}
                         {notifTarget === user.id && (
                           <tr>
-                            <td colSpan={4} style={{ padding: '0.5rem' }}>
+                            <td colSpan={5} style={{ padding: '0.5rem' }}>
                               <div className="animate-fade-in" style={{
                                 background: 'rgba(14, 165, 233, 0.04)',
                                 border: '1px solid rgba(14, 165, 233, 0.15)',

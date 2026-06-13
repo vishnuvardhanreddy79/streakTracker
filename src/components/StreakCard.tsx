@@ -1,15 +1,47 @@
 'use client';
 
 import React from 'react';
-import { Streak } from '../types';
+import { Streak, Activity } from '../types';
 
 interface StreakCardProps {
   streak: Streak;
   userName: string;
+  streakFreezes?: number;
+  onUseFreeze?: () => Promise<void>;
+  activities?: Activity[];
+  freezeDates?: string[];
 }
 
-function StreakCardInner({ streak, userName }: StreakCardProps) {
+function StreakCardInner({ streak, userName, streakFreezes = 0, onUseFreeze, activities = [], freezeDates = [] }: StreakCardProps) {
   const { currentStreak, longestStreak, lastActiveDate, isFrozen } = streak;
+
+  const getLocalStr = (d = new Date()) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayStr = getLocalStr();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = getLocalStr(yesterday);
+
+  const dayBeforeYesterday = new Date();
+  dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
+  const dayBeforeYesterdayStr = getLocalStr(dayBeforeYesterday);
+
+  const yesterdayActive = activities.some(a => a.date === yesterdayStr);
+  const yesterdayFrozen = freezeDates.includes(yesterdayStr);
+  const dayBeforeYesterdayActive = activities.some(a => a.date === dayBeforeYesterdayStr);
+  const dayBeforeYesterdayFrozen = freezeDates.includes(dayBeforeYesterdayStr);
+
+  const canFreeze = !yesterdayActive && !yesterdayFrozen && !!lastActiveDate && (
+    lastActiveDate === dayBeforeYesterdayStr || 
+    dayBeforeYesterdayActive ||
+    dayBeforeYesterdayFrozen ||
+    (lastActiveDate === todayStr && (dayBeforeYesterdayActive || dayBeforeYesterdayFrozen))
+  );
 
   // Determine fire flame scale and intensity based on streak days
   const getFlameScale = () => {
@@ -139,7 +171,7 @@ function StreakCardInner({ streak, userName }: StreakCardProps) {
 
       {/* Streak Information fields */}
       <div style={{ flexGrow: 1, zIndex: 1 }}>
-        <div style={{ display: 'flex', gap: '2rem', marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '2rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Current Streak
@@ -184,6 +216,17 @@ function StreakCardInner({ streak, userName }: StreakCardProps) {
               <span style={{ fontSize: '0.9rem', color: 'var(--foreground-muted)', fontWeight: 600 }}>days</span>
             </div>
           </div>
+
+          <div style={{ borderLeft: '1px solid var(--glass-border)', paddingLeft: '2rem' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Freezes ❄️
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem' }}>
+              <span style={{ fontSize: '2.5rem', fontWeight: 800, color: '#38bdf8' }}>
+                {streakFreezes}
+              </span>
+            </div>
+          </div>
         </div>
 
         <p style={{ fontSize: '0.9rem', lineHeight: '1.4', color: 'var(--foreground-muted)' }}>
@@ -193,6 +236,34 @@ function StreakCardInner({ streak, userName }: StreakCardProps) {
         {lastActiveDate && (
           <div style={{ fontSize: '0.75rem', color: 'var(--foreground-dark)', marginTop: '0.5rem' }}>
             Last activity logged on: <strong>{new Date(lastActiveDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+          </div>
+        )}
+
+        {canFreeze && (
+          <div style={{ marginTop: '1.25rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
+            <button
+              onClick={() => onUseFreeze?.()}
+              disabled={streakFreezes <= 0}
+              className="btn-primary"
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+                boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                fontSize: '0.85rem',
+                padding: '0.65rem 1rem',
+              }}
+            >
+              <span>❄️ Save Streak (Use 1 Freeze)</span>
+            </button>
+            {streakFreezes <= 0 && (
+              <p style={{ fontSize: '0.75rem', color: 'var(--danger)', marginTop: '0.4rem', textAlign: 'center' }}>
+                No freezes available. Ask an administrator for more freezes!
+              </p>
+            )}
           </div>
         )}
       </div>

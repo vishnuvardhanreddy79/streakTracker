@@ -5,6 +5,7 @@
 DROP TABLE IF EXISTS activities CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS profiles CASCADE;
+DROP TABLE IF EXISTS streak_freeze_usages CASCADE;
 
 -- Recreate Profiles table linked to auth.users
 CREATE TABLE profiles (
@@ -17,6 +18,7 @@ CREATE TABLE profiles (
     longest_streak INTEGER NOT NULL DEFAULT 0,
     streak_frozen BOOLEAN NOT NULL DEFAULT FALSE,
     last_active_date DATE DEFAULT NULL,
+    streak_freezes INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
@@ -63,3 +65,19 @@ CREATE POLICY "Allow public read notifications" ON notifications FOR SELECT USIN
 CREATE POLICY "Allow public insert notifications" ON notifications FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update notifications" ON notifications FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete notifications" ON notifications FOR DELETE USING (true);
+
+-- Recreate streak_freeze_usages table
+CREATE TABLE streak_freeze_usages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UNIQUE (user_id, date)
+);
+
+ALTER TABLE streak_freeze_usages ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read streak_freeze_usages" ON streak_freeze_usages FOR SELECT USING (true);
+CREATE POLICY "Allow public insert streak_freeze_usages" ON streak_freeze_usages FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update streak_freeze_usages" ON streak_freeze_usages FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete streak_freeze_usages" ON streak_freeze_usages FOR DELETE USING (true);

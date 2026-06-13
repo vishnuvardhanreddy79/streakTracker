@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     longest_streak INTEGER NOT NULL DEFAULT 0,
     streak_frozen BOOLEAN NOT NULL DEFAULT FALSE,
     last_active_date DATE DEFAULT NULL,
+    streak_freezes INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
@@ -57,3 +58,21 @@ CREATE POLICY "Allow public read notifications" ON notifications FOR SELECT USIN
 CREATE POLICY "Allow public insert notifications" ON notifications FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update notifications" ON notifications FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete notifications" ON notifications FOR DELETE USING (true);
+
+-- Streak freeze usages table - stores dates on which a streak freeze was explicitly consumed
+CREATE TABLE IF NOT EXISTS streak_freeze_usages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UNIQUE (user_id, date)
+);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE streak_freeze_usages ENABLE ROW LEVEL SECURITY;
+
+-- Policies for streak_freeze_usages
+CREATE POLICY "Allow public read streak_freeze_usages" ON streak_freeze_usages FOR SELECT USING (true);
+CREATE POLICY "Allow public insert streak_freeze_usages" ON streak_freeze_usages FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update streak_freeze_usages" ON streak_freeze_usages FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete streak_freeze_usages" ON streak_freeze_usages FOR DELETE USING (true);

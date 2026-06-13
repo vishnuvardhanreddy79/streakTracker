@@ -17,6 +17,7 @@ interface ActivityFormProps {
 
 const CATEGORIES = [
   'Coding Practice',
+  'DSA Practice',
   'Web Development',
   'UI/UX Design',
   'Technical Reading',
@@ -25,7 +26,12 @@ const CATEGORIES = [
 ];
 
 function ActivityFormInner({ userId, userName, onLogActivity }: ActivityFormProps) {
-  const [date, setDate] = useState(getLocalDateString());
+  const todayStr = getLocalDateString();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = getLocalDateString(yesterday);
+
+  const [date, setDate] = useState(todayStr);
   const [count, setCount] = useState(1);
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [customCategory, setCustomCategory] = useState('');
@@ -51,9 +57,13 @@ function ActivityFormInner({ userId, userName, onLogActivity }: ActivityFormProp
     const selectedFile = e.target.files?.[0] || null;
 
     if (selectedFile) {
-      const isJpg = selectedFile.type === 'image/jpeg' || selectedFile.type === 'image/jpg' || selectedFile.name.endsWith('.jpg') || selectedFile.name.endsWith('.jpeg');
-      if (!isJpg) {
-        setError('Only JPG/JPEG files are allowed');
+      const fileExt = selectedFile.name.split('.').pop()?.toLowerCase();
+      const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      const isValid = allowedExts.includes(fileExt || '') || allowedTypes.includes(selectedFile.type);
+      
+      if (!isValid) {
+        setError('Only JPG, PNG, WEBP, or GIF files are allowed');
         setFile(null);
         setFilePreview(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -90,6 +100,12 @@ function ActivityFormInner({ userId, userName, onLogActivity }: ActivityFormProp
     e.preventDefault();
     setError('');
     setSuccess(false);
+
+    // Date validation: must be today or yesterday
+    if (date !== todayStr && date !== yesterdayStr) {
+      setError('You can only log activity for today or yesterday.');
+      return;
+    }
 
     // Strict validation
     if (count < 1) {
@@ -161,7 +177,8 @@ function ActivityFormInner({ userId, userName, onLogActivity }: ActivityFormProp
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
-            max={getLocalDateString()}
+            min={yesterdayStr}
+            max={todayStr}
           />
         </div>
 
@@ -259,12 +276,12 @@ function ActivityFormInner({ userId, userName, onLogActivity }: ActivityFormProp
         {/* Image Submission Field */}
         <div>
           <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.35rem' }}>
-            Work Screenshot (JPG/JPEG, optional)
+            Work Screenshot (JPG, PNG, WEBP, GIF, optional)
           </label>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <input
               type="file"
-              accept=".jpg,.jpeg"
+              accept=".jpg,.jpeg,.png,.webp,.gif"
               ref={fileInputRef}
               onChange={handleFileChange}
               style={{ display: 'none' }}
@@ -278,7 +295,7 @@ function ActivityFormInner({ userId, userName, onLogActivity }: ActivityFormProp
               <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
-              Choose JPG File
+              Choose Image File
             </button>
             {file && (
               <span style={{ fontSize: '0.75rem', color: 'var(--foreground-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>

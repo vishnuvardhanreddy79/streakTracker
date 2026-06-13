@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Profile, Activity, Streak, UserProgress, Notification } from '../types';
+import { Profile, Activity, Streak, UserProgress, Notification, StreakFreezeUsage } from '../types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -52,13 +52,16 @@ export function parseLocalDate(dateStr: string): Date {
 }
 
 // ─── Dynamic Streak Calculator ──────────────────────────────────────────────
-export function calculateStreak(activities: Activity[]): Streak {
-  if (activities.length === 0) {
+export function calculateStreak(activities: Activity[], freezeDates: string[] = []): Streak {
+  if (activities.length === 0 && freezeDates.length === 0) {
     return { currentStreak: 0, longestStreak: 0, lastActiveDate: null };
   }
 
   // Extract and sort unique dates (YYYY-MM-DD) descending
-  const activeDates = Array.from(new Set(activities.map(a => a.date))).sort(
+  const activeDates = Array.from(new Set([
+    ...activities.map(a => a.date),
+    ...freezeDates
+  ])).sort(
     (a, b) => parseLocalDate(b).getTime() - parseLocalDate(a).getTime()
   );
 
@@ -125,14 +128,20 @@ export function calculateStreak(activities: Activity[]): Streak {
 }
 
 // ─── LocalStorage Helpers (Clean — No Seed Data) ────────────────────────────
-function getLocalStorageData(): { profiles: Profile[]; activities: Activity[]; notifications: Notification[] } {
+function getLocalStorageData(): { 
+  profiles: Profile[]; 
+  activities: Activity[]; 
+  notifications: Notification[];
+  streak_freeze_usages: StreakFreezeUsage[];
+} {
   if (typeof window === 'undefined') {
-    return { profiles: [], activities: [], notifications: [] };
+    return { profiles: [], activities: [], notifications: [], streak_freeze_usages: [] };
   }
 
   const p = localStorage.getItem('tracker_profiles');
   const a = localStorage.getItem('tracker_activities');
   const n = localStorage.getItem('tracker_notifications');
+  const f = localStorage.getItem('tracker_streak_freeze_usages');
 
   if (!p) {
     localStorage.setItem('tracker_profiles', JSON.stringify([]));
@@ -143,20 +152,32 @@ function getLocalStorageData(): { profiles: Profile[]; activities: Activity[]; n
   if (!n) {
     localStorage.setItem('tracker_notifications', JSON.stringify([]));
   }
+  if (!f) {
+    localStorage.setItem('tracker_streak_freeze_usages', JSON.stringify([]));
+  }
 
   return {
     profiles: p ? JSON.parse(p) : [],
     activities: a ? JSON.parse(a) : [],
     notifications: n ? JSON.parse(n) : [],
+    streak_freeze_usages: f ? JSON.parse(f) : [],
   };
 }
 
-function saveLocalStorageData(profiles: Profile[], activities: Activity[], notifications?: Notification[]) {
+function saveLocalStorageData(
+  profiles: Profile[],
+  activities: Activity[],
+  notifications?: Notification[],
+  streak_freeze_usages?: StreakFreezeUsage[]
+) {
   if (typeof window === 'undefined') return;
   localStorage.setItem('tracker_profiles', JSON.stringify(profiles));
   localStorage.setItem('tracker_activities', JSON.stringify(activities));
   if (notifications !== undefined) {
     localStorage.setItem('tracker_notifications', JSON.stringify(notifications));
+  }
+  if (streak_freeze_usages !== undefined) {
+    localStorage.setItem('tracker_streak_freeze_usages', JSON.stringify(streak_freeze_usages));
   }
 }
 
@@ -250,6 +271,7 @@ export async function getUserProgress(profileId: string): Promise<UserProgress |
 
   let profile: Profile | null = null;
   let activities: Activity[] = [];
+  let freezeDates: string[] = [];
 
   if (isSupabaseConfigured && supabase) {
     const { data: profileData, error: profileError } = await supabase
@@ -275,32 +297,59 @@ export async function getUserProgress(profileId: string): Promise<UserProgress |
     } else {
       activities = activityData || [];
     }
+
+    const { data: freezeData, error: freezeError } = await supabase
+      .from('streak_freeze_usages')
+      .select('date')
+      .eq('user_id', profileId);
+
+    if (freezeError) {
+      console.error('Error fetching freeze usages from Supabase:', freezeError);
+    } else {
+      freezeDates = (freezeData || []).map(f => f.date);
+    }
   }
 
   if (!profile) {
     const local = getLocalStorageData();
     profile = local.profiles.find(p => p.id === profileId) || null;
-    // Strict user_id filtering — only this user's activities
     activities = local.activities
       .filter(a => a.user_id === profileId)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    freezeDates = local.streak_freeze_usages
+      .filter(f => f.user_id === profileId)
+      .map(f => f.date);
   }
 
   if (!profile) return null;
 
-  // Initialize streak values if not present
-  let current_streak = profile.current_streak ?? 0;
-  let longest_streak = profile.longest_streak ?? 0;
-  const streak_frozen = profile.streak_frozen ?? false;
-  let last_active_date = profile.last_active_date ?? null;
+  // Recalculate streak dynamically based on activities list and freezeDates
+  const dynamicStreak = calculateStreak(activities, freezeDates);
+  let current_streak = dynamicStreak.currentStreak;
+  const longest_streak = Math.max(profile.longest_streak ?? 0, dynamicStreak.longestStreak, dynamicStreak.currentStreak);
+  let last_active_date = dynamicStreak.lastActiveDate;
+  let streak_frozen = profile.streak_frozen ?? false;
+  const streak_freezes = profile.streak_freezes ?? 0;
 
-  if (profile.current_streak === undefined || profile.longest_streak === undefined) {
-    const dynamicStreak = calculateStreak(activities);
-    current_streak = dynamicStreak.currentStreak;
-    longest_streak = dynamicStreak.longestStreak;
-    last_active_date = dynamicStreak.lastActiveDate;
+  if (streak_frozen) {
+    // If the streak is frozen, don't let it decay to 0. Keep the stored current_streak unless the dynamic calculations show a higher value
+    if (profile.current_streak !== undefined && profile.current_streak > current_streak) {
+      current_streak = profile.current_streak;
+      last_active_date = profile.last_active_date ?? null;
+    } else {
+      // If the dynamic streak is higher or they logged a new activity, automatically unfreeze
+      streak_frozen = false;
+    }
+  }
 
-    // Persist defaults
+  // If the calculated values differ from stored, update DB/localStorage
+  const needsUpdate = profile.current_streak !== current_streak ||
+                      profile.longest_streak !== longest_streak ||
+                      profile.last_active_date !== last_active_date ||
+                      profile.streak_frozen !== streak_frozen ||
+                      profile.streak_freezes === undefined;
+
+  if (needsUpdate) {
     if (isSupabaseConfigured && supabase) {
       await supabase
         .from('profiles')
@@ -308,7 +357,8 @@ export async function getUserProgress(profileId: string): Promise<UserProgress |
           current_streak,
           longest_streak,
           last_active_date,
-          streak_frozen
+          streak_frozen,
+          streak_freezes
         })
         .eq('id', profileId);
     } else {
@@ -319,42 +369,18 @@ export async function getUserProgress(profileId: string): Promise<UserProgress |
         local.profiles[idx].longest_streak = longest_streak;
         local.profiles[idx].last_active_date = last_active_date;
         local.profiles[idx].streak_frozen = streak_frozen;
+        local.profiles[idx].streak_freezes = streak_freezes;
         saveLocalStorageData(local.profiles, local.activities, local.notifications);
       }
     }
+    profile.current_streak = current_streak;
+    profile.longest_streak = longest_streak;
+    profile.last_active_date = last_active_date;
+    profile.streak_frozen = streak_frozen;
+    profile.streak_freezes = streak_freezes;
+  } else {
+    profile.streak_freezes = streak_freezes;
   }
-
-  // Check for streak decay (expiration)
-  if (last_active_date && current_streak > 0 && !streak_frozen) {
-    const todayStr = getLocalDateString();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = getLocalDateString(yesterday);
-
-    if (last_active_date !== todayStr && last_active_date !== yesterdayStr) {
-      current_streak = 0;
-      
-      if (isSupabaseConfigured && supabase) {
-        await supabase
-          .from('profiles')
-          .update({ current_streak: 0 })
-          .eq('id', profileId);
-      } else {
-        const local = getLocalStorageData();
-        const idx = local.profiles.findIndex(p => p.id === profileId);
-        if (idx !== -1) {
-          local.profiles[idx].current_streak = 0;
-          saveLocalStorageData(local.profiles, local.activities, local.notifications);
-        }
-      }
-    }
-  }
-
-  // Assign updated values
-  profile.current_streak = current_streak;
-  profile.longest_streak = longest_streak;
-  profile.streak_frozen = streak_frozen;
-  profile.last_active_date = last_active_date;
 
   const streak: Streak = {
     currentStreak: current_streak,
@@ -363,74 +389,15 @@ export async function getUserProgress(profileId: string): Promise<UserProgress |
     isFrozen: streak_frozen,
   };
 
-  const result: UserProgress = { profile, activities, streak };
+  const result: UserProgress = { profile, activities, streak, freezeDates };
   setCache(cacheKey, result);
   return result;
 }
 
 // Helper to update profile's streak upon logging an activity
-async function updateProfileStreakOnActivityLog(profileId: string, date: string): Promise<void> {
-  const profileProgress = await getUserProgress(profileId);
-  if (!profileProgress) return;
-
-  const { profile, activities } = profileProgress;
-  let newCurrent = profile.current_streak ?? 0;
-  let newLongest = profile.longest_streak ?? 0;
-  const streakFrozen = profile.streak_frozen ?? false;
-
-  const dateLogsCount = activities.filter(a => a.date === date).length;
-
-  if (dateLogsCount <= 1) {
-    const todayStr = getLocalDateString();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = getLocalDateString(yesterday);
-
-    if (date === todayStr || date === yesterdayStr) {
-      if (profile.last_active_date === yesterdayStr) {
-        newCurrent += 1;
-      } else if (profile.last_active_date === todayStr) {
-        // already active today
-      } else {
-        if (streakFrozen) {
-          newCurrent += 1;
-        } else {
-          newCurrent = 1;
-        }
-      }
-    } else {
-      if (!profile.last_active_date) {
-        newCurrent = 1;
-      }
-    }
-
-    if (newCurrent > newLongest) {
-      newLongest = newCurrent;
-    }
-
-    if (isSupabaseConfigured && supabase) {
-      await supabase
-        .from('profiles')
-        .update({
-          current_streak: newCurrent,
-          longest_streak: newLongest,
-          last_active_date: date,
-          streak_frozen: false // automatically unfreeze
-        })
-        .eq('id', profileId);
-    } else {
-      const local = getLocalStorageData();
-      const idx = local.profiles.findIndex(p => p.id === profileId);
-      if (idx !== -1) {
-        local.profiles[idx].current_streak = newCurrent;
-        local.profiles[idx].longest_streak = newLongest;
-        local.profiles[idx].last_active_date = date;
-        local.profiles[idx].streak_frozen = false;
-        saveLocalStorageData(local.profiles, local.activities, local.notifications);
-      }
-    }
-    invalidateCache(`progress_${profileId}`);
-  }
+async function updateProfileStreakOnActivityLog(profileId: string): Promise<void> {
+  invalidateCache(`progress_${profileId}`);
+  await getUserProgress(profileId);
 }
 
 export async function logActivity(
@@ -444,6 +411,16 @@ export async function logActivity(
   // Validate inputs
   if (count < 1) throw new Error('Problem count must be at least 1');
   if (!notes || !notes.trim()) throw new Error('Activity description is required');
+
+  // Validate date: must be today or yesterday
+  const todayStr = getLocalDateString();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = getLocalDateString(yesterday);
+
+  if (date !== todayStr && date !== yesterdayStr) {
+    throw new Error('You can only log activity for today or yesterday.');
+  }
 
   // Invalidate cache for this user
   invalidateCache(`progress_${profileId}`);
@@ -470,7 +447,7 @@ export async function logActivity(
         .single();
 
       if (!error && data) {
-        await updateProfileStreakOnActivityLog(profileId, date);
+        await updateProfileStreakOnActivityLog(profileId);
         return data;
       }
       console.error('Supabase activity update failed, running localStorage fallback:', error);
@@ -489,7 +466,7 @@ export async function logActivity(
         .single();
 
       if (!error && data) {
-        await updateProfileStreakOnActivityLog(profileId, date);
+        await updateProfileStreakOnActivityLog(profileId);
         return data;
       }
       console.error('Supabase activity insert failed, running localStorage fallback:', error);
@@ -529,7 +506,7 @@ export async function logActivity(
   }
 
   saveLocalStorageData(local.profiles, local.activities);
-  await updateProfileStreakOnActivityLog(profileId, date);
+  await updateProfileStreakOnActivityLog(profileId);
   return updatedActivity;
 }
 
@@ -632,6 +609,26 @@ export async function uploadWorkImage(file: File, userId: string): Promise<strin
     };
     reader.readAsDataURL(file);
   });
+}
+
+export async function updateProfileAvatar(userId: string, avatarUrl: string): Promise<void> {
+  invalidateCache(`progress_${userId}`);
+  invalidateCache('profiles');
+
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', userId);
+    if (error) throw error;
+  } else {
+    const local = getLocalStorageData();
+    const idx = local.profiles.findIndex(p => p.id === userId);
+    if (idx !== -1) {
+      local.profiles[idx].avatar_url = avatarUrl;
+      saveLocalStorageData(local.profiles, local.activities, local.notifications, local.streak_freeze_usages);
+    }
+  }
 }
 
 // ─── Admin Dashboard Data ───────────────────────────────────────────────────
@@ -829,6 +826,122 @@ export async function adminToggleFreezeStreak(userId: string, freeze: boolean): 
   if (idx !== -1) {
     local.profiles[idx].streak_frozen = freeze;
     saveLocalStorageData(local.profiles, local.activities, local.notifications);
+  }
+}
+
+/**
+ * Consume one streak freeze token to preserve streak for yesterday.
+ */
+export async function consumeStreakFreeze(profileId: string): Promise<void> {
+  invalidateCache(`progress_${profileId}`);
+
+  const progress = await getUserProgress(profileId);
+  if (!progress) throw new Error('User profile not found');
+
+  const { profile, activities, freezeDates = [] } = progress;
+  const freezes = profile.streak_freezes ?? 0;
+  if (freezes <= 0) {
+    throw new Error('No streak freezes available');
+  }
+
+  // Find yesterday's date
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = getLocalDateString(yesterday);
+
+  // Check if they already have an activity or freeze logged for yesterday
+  const hasActivityYesterday = activities.some(a => a.date === yesterdayStr);
+  const hasFreezeYesterday = freezeDates.includes(yesterdayStr);
+  if (hasActivityYesterday || hasFreezeYesterday) {
+    throw new Error('You already have an activity or freeze logged for yesterday.');
+  }
+
+  const updatedFreezeDates = [...freezeDates, yesterdayStr];
+
+  if (isSupabaseConfigured && supabase) {
+    // 1. Insert Streak Freeze usage
+    const { error: insertErr } = await supabase
+      .from('streak_freeze_usages')
+      .insert({
+        user_id: profileId,
+        date: yesterdayStr
+      });
+
+    if (insertErr) throw insertErr;
+
+    // 2. Recalculate dynamic streak
+    const newStreak = calculateStreak(activities, updatedFreezeDates);
+
+    // 3. Update profile row
+    const { error: updateErr } = await supabase
+      .from('profiles')
+      .update({
+        streak_freezes: freezes - 1,
+        current_streak: newStreak.currentStreak,
+        longest_streak: newStreak.longestStreak,
+        last_active_date: yesterdayStr,
+      })
+      .eq('id', profileId);
+
+    if (updateErr) throw updateErr;
+  } else {
+    // LocalStorage Fallback
+    const local = getLocalStorageData();
+    const newFreeze: StreakFreezeUsage = {
+      id: `freeze-local-${Math.random().toString(36).substring(2, 11)}`,
+      user_id: profileId,
+      date: yesterdayStr,
+      created_at: new Date().toISOString(),
+    };
+    local.streak_freeze_usages.push(newFreeze);
+
+    const newStreak = calculateStreak(activities, updatedFreezeDates);
+
+    const idx = local.profiles.findIndex(p => p.id === profileId);
+    if (idx !== -1) {
+      local.profiles[idx].streak_freezes = freezes - 1;
+      local.profiles[idx].current_streak = newStreak.currentStreak;
+      local.profiles[idx].longest_streak = newStreak.longestStreak;
+      local.profiles[idx].last_active_date = yesterdayStr;
+    }
+    saveLocalStorageData(local.profiles, local.activities, local.notifications, local.streak_freeze_usages);
+  }
+}
+
+/**
+ * Admin: Adjust a user's streak freezes count.
+ */
+export async function adminAdjustStreakFreezes(userId: string, amount: number): Promise<void> {
+  invalidateCache();
+
+  let profile: Profile | null = null;
+  if (isSupabaseConfigured && supabase) {
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    profile = data;
+  } else {
+    const local = getLocalStorageData();
+    profile = local.profiles.find(p => p.id === userId) || null;
+  }
+
+  if (!profile) return;
+
+  const currentFreezes = profile.streak_freezes ?? 0;
+  const newFreezes = Math.max(0, currentFreezes + amount);
+
+  if (isSupabaseConfigured && supabase) {
+    await supabase
+      .from('profiles')
+      .update({
+        streak_freezes: newFreezes
+      })
+      .eq('id', userId);
+  } else {
+    const local = getLocalStorageData();
+    const idx = local.profiles.findIndex(p => p.id === userId);
+    if (idx !== -1) {
+      local.profiles[idx].streak_freezes = newFreezes;
+      saveLocalStorageData(local.profiles, local.activities, local.notifications);
+    }
   }
 }
 

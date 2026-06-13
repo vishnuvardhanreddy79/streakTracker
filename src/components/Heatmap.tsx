@@ -7,9 +7,13 @@ import { getLocalDateString } from '../lib/db';
 interface HeatmapProps {
   activities: Activity[];
   userName: string;
+  freezeDates?: string[];
 }
 
-function HeatmapInner({ activities, userName }: HeatmapProps) {
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function HeatmapInner({ activities, userName, freezeDates = [] }: HeatmapProps) {
+  const [dateRange, setDateRange] = useState<'last12' | 'thisYear' | 'prevYear'>('last12');
   const [hoveredDay, setHoveredDay] = useState<{
     dateStr: string;
     count: number;
@@ -38,71 +42,125 @@ function HeatmapInner({ activities, userName }: HeatmapProps) {
     return map;
   }, [activities]);
 
-  // Generate 53 weeks of dates ending today, aligned to starts of weeks
-  const gridData = useMemo(() => {
+  // Generate months ending in the current month depending on the selected range filter
+  const monthlyData = useMemo(() => {
     const today = new Date();
-    const resultWeeks: {
-      days: { dateStr: string; dateObj: Date; count: number; category: string | null; notes: string | null }[];
-      monthLabel?: string;
-    }[] = [];
+    const result = [];
 
-    // Go back 364 days (52 weeks)
-    const startDate = new Date();
-    startDate.setDate(today.getDate() - 364);
-    
-    // Roll back to the nearest Sunday
-    const startDayOfWeek = startDate.getDay();
-    startDate.setDate(startDate.getDate() - startDayOfWeek);
+    // Determine the month loop boundaries
+    const monthCount = 12;
+    let getYearAndMonth: (idx: number) => { year: number; monthIndex: number };
 
-    const currentDate = new Date(startDate);
-    let currentWeek: typeof resultWeeks[0]['days'] = [];
-    let previousMonthStr = '';
-
-    while (currentDate <= today || currentWeek.length > 0) {
-      const dateStr = getLocalDateString(currentDate);
-      const dayData = activityMap.get(dateStr);
-      
-      currentWeek.push({
-        dateStr,
-        dateObj: new Date(currentDate),
-        count: dayData?.count || 0,
-        category: dayData?.category || null,
-        notes: dayData?.notes && dayData.notes.length > 0 ? dayData.notes.join('; ') : null,
-      });
-
-      // If week is full (7 days) or we reached the limit
-      if (currentWeek.length === 7) {
-        // Determine if we should show a month label
-        // We show it if the month of the first day of this week is different from previous
-        const firstDayOfMonth = currentWeek[0].dateObj;
-        const monthStr = firstDayOfMonth.toLocaleString(undefined, { month: 'short' });
-        let monthLabel: string | undefined;
-
-        if (monthStr !== previousMonthStr) {
-          monthLabel = monthStr;
-          previousMonthStr = monthStr;
-        }
-
-        resultWeeks.push({ days: currentWeek, monthLabel });
-        currentWeek = [];
-      }
-
-      currentDate.setDate(currentDate.getDate() + 1);
-      
-      // Stop condition safety
-      if (currentDate > today && currentWeek.length === 0) {
-        break;
-      }
-      if (resultWeeks.length > 54) {
-        break; // safety break
-      }
+    if (dateRange === 'last12') {
+      // Rolling 12-month range ending in the current month
+      getYearAndMonth = (idx) => {
+        const targetDate = new Date(today.getFullYear(), today.getMonth() - (11 - idx), 1);
+        return {
+          year: targetDate.getFullYear(),
+          monthIndex: targetDate.getMonth(),
+        };
+      };
+    } else if (dateRange === 'thisYear') {
+      // Jan to Dec of the current calendar year
+      getYearAndMonth = (idx) => {
+        return {
+          year: today.getFullYear(),
+          monthIndex: idx,
+        };
+      };
+    } else {
+      // Jan to Dec of the previous calendar year
+      getYearAndMonth = (idx) => {
+        return {
+          year: today.getFullYear() - 1,
+          monthIndex: idx,
+        };
+      };
     }
 
-    return resultWeeks;
-  }, [activityMap]);
+    for (let i = 0; i < monthCount; i++) {
+      const { year, monthIndex } = getYearAndMonth(i);
+      const targetDate = new Date(year, monthIndex, 1);
+      const monthLabel = targetDate.toLocaleString(undefined, { month: 'short' });
+      const yearLabel = targetDate.getFullYear();
 
-  // Helper to determine the green color level
-  const getColorLevel = (count: number) => {
+      // Days in this month
+      const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+
+      // Weekday index of 1st of month: 0 (Sun) to 6 (Sat)
+      const firstDayOfWeekday = new Date(year, monthIndex, 1).getDay();
+
+      // Convert to Mon-Sun start offset (0 = Mon, 6 = Sun)
+      const startOffset = firstDayOfWeekday === 0 ? 6 : firstDayOfWeekday - 1;
+
+      const cells: {
+        dateStr: string | null;
+        dayNum: number | null;
+        count: number;
+        category: string | null;
+        notes: string | null;
+      }[] = [];
+
+      // 1. Padding leading empty cells
+      for (let j = 0; j < startOffset; j++) {
+        cells.push({
+          dateStr: null,
+          dayNum: null,
+          count: 0,
+          category: null,
+          notes: null,
+        });
+      }
+
+      // 2. Main calendar month days
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = getLocalDateString(new Date(year, monthIndex, day));
+        const dayData = activityMap.get(dateStr);
+        const isFrozen = freezeDates.includes(dateStr);
+
+        cells.push({
+          dateStr,
+          dayNum: day,
+          count: dayData?.count || 0,
+          category: isFrozen ? 'Streak Freeze' : (dayData?.category || null),
+          notes: isFrozen ? 'Streak preserved using freeze token ❄️' : (dayData?.notes && dayData.notes.length > 0 ? dayData.notes.join('; ') : null),
+        });
+      }
+
+      // 3. Padding trailing empty cells
+      const remainder = cells.length % 7;
+      if (remainder > 0) {
+        const trailingEmptyCount = 7 - remainder;
+        for (let j = 0; j < trailingEmptyCount; j++) {
+          cells.push({
+            dateStr: null,
+            dayNum: null,
+            count: 0,
+            category: null,
+            notes: null,
+          });
+        }
+      }
+
+      // 4. Group cells into columns of weeks (7 days each)
+      const weeks: typeof cells[] = [];
+      for (let j = 0; j < cells.length; j += 7) {
+        weeks.push(cells.slice(j, j + 7));
+      }
+
+      result.push({
+        monthLabel,
+        yearLabel,
+        weeks,
+      });
+    }
+
+    return result;
+  }, [activityMap, dateRange, freezeDates]);
+
+  // Helper to determine the green color level or blue for freezes
+  const getColorLevel = (count: number, isFreeze?: boolean) => {
+    if (isFreeze) return '#38bdf8'; // Blue freeze color
     if (count === 0) return 'var(--level-0)';
     if (count === 1) return 'var(--level-1)';
     if (count <= 2) return 'var(--level-2)';
@@ -112,10 +170,10 @@ function HeatmapInner({ activities, userName }: HeatmapProps) {
 
   const handleMouseEnter = (
     e: React.MouseEvent<SVGRectElement>,
-    day: typeof gridData[0]['days'][0]
+    day: { dateStr: string | null; count: number; category: string | null; notes: string | null }
   ) => {
+    if (!day.dateStr) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    // Position tooltip above the hovered square relative to page
     setHoveredDay({
       dateStr: day.dateStr,
       count: day.count,
@@ -141,100 +199,166 @@ function HeatmapInner({ activities, userName }: HeatmapProps) {
 
   return (
     <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>Activity Heatmap</h2>
           <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)' }}>
-            Calendar grid tracking study logs of {userName} over the past year.
+            Calendar grid tracking study logs of {userName}.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.8rem' }}>
-          <div>
-            <span style={{ color: 'var(--success)', fontWeight: 700 }}>{totalSubmissions}</span>
-            <span style={{ color: 'var(--foreground-muted)' }}> total problems</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          {/* Stats counts */}
+          <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+            <div>
+              <span style={{ color: 'var(--success)', fontWeight: 700 }}>{totalSubmissions}</span>
+              <span style={{ color: 'var(--foreground-muted)' }}> total problems</span>
+            </div>
+            <div>
+              <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{activeDaysCount}</span>
+              <span style={{ color: 'var(--foreground-muted)' }}> active days</span>
+            </div>
           </div>
-          <div>
-            <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{activeDaysCount}</span>
-            <span style={{ color: 'var(--foreground-muted)' }}> active days</span>
-          </div>
+
+          {/* Date range dropdown selector */}
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value as 'last12' | 'thisYear' | 'prevYear')}
+            className="input-field"
+            style={{
+              padding: '0.35rem 1.75rem 0.35rem 0.75rem',
+              fontSize: '0.8rem',
+              width: 'auto',
+              borderRadius: 'var(--border-radius-sm)',
+              background: 'rgba(15, 23, 42, 0.8)',
+              border: '1px solid var(--glass-border)',
+              color: 'var(--foreground)',
+              cursor: 'pointer',
+              appearance: 'none',
+              backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2394a3b8\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3e%3cpolyline points=\'6 9 12 15 18 9\'/%3e%3c/svg%3e")',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 0.5rem center',
+              backgroundSize: '1em',
+            }}
+          >
+            <option value="last12" style={{ background: '#0e172e' }}>Last 12 Months</option>
+            <option value="thisYear" style={{ background: '#0e172e' }}>This Calendar Year</option>
+            <option value="prevYear" style={{ background: '#0e172e' }}>Previous Calendar Year</option>
+          </select>
         </div>
       </div>
 
-      {/* Heatmap Grid Wrapper */}
-      <div style={{ width: '100%', overflowX: 'auto', paddingBottom: '0.5rem' }}>
-        <div style={{ display: 'inline-flex', gap: '8px', padding: '10px 4px 0 4px', minWidth: '780px' }}>
-          {/* Weekday labels */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            height: '84px',
-            fontSize: '0.7rem',
-            color: 'var(--foreground-dark)',
-            paddingTop: '20px', // offset for month labels
-            paddingRight: '6px'
-          }}>
-            <span>Sun</span>
-            <span>Tue</span>
-            <span>Thu</span>
-            <span>Sat</span>
+      {/* Calendar Months Horizontal Scrollable Container */}
+      <div style={{
+        display: 'flex',
+        gap: '1.25rem',
+        marginTop: '0.5rem',
+        overflowX: 'auto',
+        paddingBottom: '0.75rem',
+        width: '100%',
+        scrollbarWidth: 'thin',
+        msOverflowStyle: 'none'
+      }}>
+        {monthlyData.map((month) => (
+          <div
+            key={`${month.monthLabel}-${month.yearLabel}`}
+            style={{
+              flex: '0 0 135px', // Keeps cards size identical and prevents shrinking/growing
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              background: 'rgba(255, 255, 255, 0.01)',
+              border: '1px solid var(--glass-border)',
+              borderRadius: '12px',
+              padding: '0.75rem 0.5rem',
+              transition: 'var(--transition-smooth)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--glass-border-hover)';
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--glass-border)';
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.01)';
+            }}
+          >
+            {/* Month Header Label */}
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--foreground)', marginBottom: '0.5rem' }}>
+              {month.monthLabel} {month.yearLabel}
+            </div>
+
+            {/* SVG Month Calendar */}
+            <svg
+              viewBox="0 0 115 110"
+              style={{
+                width: '100%',
+                height: 'auto',
+                maxWidth: '115px',
+                overflow: 'visible',
+              }}
+            >
+              {/* Embedded Weekday labels */}
+              {WEEKDAYS.map((day, idx) => (
+                <text
+                  key={day}
+                  x="4"
+                  y={20 + idx * 12 + 8.5}
+                  fontSize="9.5"
+                  fill="var(--foreground-dark)"
+                  fontWeight="600"
+                >
+                  {day}
+                </text>
+              ))}
+
+              {/* Render Weeks Columns */}
+              {month.weeks.map((week, colIdx) => (
+                <g key={colIdx} transform={`translate(${35 + colIdx * 13}, 0)`}>
+                  {week.map((day, dayIdx) => {
+                    if (day.dayNum === null) return null;
+                    return (
+                      <rect
+                        key={dayIdx}
+                        x="0"
+                        y={20 + dayIdx * 12}
+                        width="10"
+                        height="10"
+                        rx="2"
+                        ry="2"
+                        fill={getColorLevel(day.count, day.category === 'Streak Freeze')}
+                        style={{
+                          cursor: 'pointer',
+                          stroke: day.count > 0 ? 'rgba(255, 255, 255, 0.05)' : 'none',
+                          transition: 'fill 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => handleMouseEnter(e, day)}
+                        onMouseLeave={handleMouseLeave}
+                      />
+                    );
+                  })}
+                </g>
+              ))}
+            </svg>
           </div>
-
-          {/* SVG Heatmap */}
-          <svg width="780" height="110" style={{ overflow: 'visible' }}>
-            {/* Render weeks columns */}
-            {gridData.map((week, weekIdx) => (
-              <g key={weekIdx} transform={`translate(${weekIdx * 14}, 0)`}>
-                {/* Month labels at top of column */}
-                {week.monthLabel && (
-                  <text
-                    x="0"
-                    y="12"
-                    fontSize="9.5"
-                    fill="var(--foreground-muted)"
-                    fontWeight="500"
-                  >
-                    {week.monthLabel}
-                  </text>
-                )}
-
-                {/* Days squares */}
-                {week.days.map((day, dayIdx) => (
-                  <rect
-                    key={dayIdx}
-                    x="0"
-                    y={20 + dayIdx * 12}
-                    width="10"
-                    height="10"
-                    rx="2"
-                    ry="2"
-                    fill={getColorLevel(day.count)}
-                    style={{
-                      cursor: 'pointer',
-                      stroke: day.count > 0 ? 'rgba(255, 255, 255, 0.05)' : 'none',
-                      transition: 'fill 0.2s ease',
-                    }}
-                    onMouseEnter={(e) => handleMouseEnter(e, day)}
-                    onMouseLeave={handleMouseLeave}
-                  />
-                ))}
-              </g>
-            ))}
-          </svg>
-        </div>
+        ))}
       </div>
 
       {/* Heatmap Legend */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--foreground-muted)', borderTop: '1px solid var(--glass-border)', paddingTop: '0.75rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--foreground-muted)', borderTop: '1px solid var(--glass-border)', paddingTop: '0.75rem', marginTop: '0.5rem' }}>
         <span>* Activity is tracked in local timezone</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span>Less</span>
-          <div style={{ width: '10px', height: '10px', rx: '2', borderRadius: '2px', background: 'var(--level-0)' }} />
-          <div style={{ width: '10px', height: '10px', rx: '2', borderRadius: '2px', background: 'var(--level-1)' }} />
-          <div style={{ width: '10px', height: '10px', rx: '2', borderRadius: '2px', background: 'var(--level-2)' }} />
-          <div style={{ width: '10px', height: '10px', rx: '2', borderRadius: '2px', background: 'var(--level-3)' }} />
-          <div style={{ width: '10px', height: '10px', rx: '2', borderRadius: '2px', background: 'var(--level-4)' }} />
-          <span>More</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#38bdf8' }} />
+            <span>Streak Freeze ❄️</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span>Less</span>
+            <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--level-0)' }} />
+            <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--level-1)' }} />
+            <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--level-2)' }} />
+            <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--level-3)' }} />
+            <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--level-4)' }} />
+            <span>More</span>
+          </div>
         </div>
       </div>
 

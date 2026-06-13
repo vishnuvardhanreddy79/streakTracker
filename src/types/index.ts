@@ -9,6 +9,7 @@ export interface Profile {
   longest_streak?: number;
   streak_frozen?: boolean;
   last_active_date?: string | null;
+  streak_freezes?: number;
 }
 
 export interface Activity {
@@ -29,10 +30,18 @@ export interface Streak {
   isFrozen?: boolean;
 }
 
+export interface StreakFreezeUsage {
+  id: string;
+  user_id: string;
+  date: string; // YYYY-MM-DD
+  created_at: string;
+}
+
 export interface UserProgress {
   profile: Profile;
   activities: Activity[];
   streak: Streak;
+  freezeDates?: string[];
 }
 
 export interface Notification {
