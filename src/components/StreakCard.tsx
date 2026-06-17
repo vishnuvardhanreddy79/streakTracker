@@ -239,11 +239,10 @@ function StreakCardInner({ streak, userName, streakFreezes = 0, onUseFreeze, act
           </div>
         )}
 
-        {canFreeze && (
+        {canFreeze && streakFreezes > 0 && (
           <div style={{ marginTop: '1.25rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
             <button
               onClick={() => onUseFreeze?.()}
-              disabled={streakFreezes <= 0}
               className="btn-primary"
               style={{
                 width: '100%',
@@ -257,13 +256,8 @@ function StreakCardInner({ streak, userName, streakFreezes = 0, onUseFreeze, act
                 padding: '0.65rem 1rem',
               }}
             >
-              <span>❄️ Save Streak (Use 1 Freeze)</span>
+              <span>Use Streak Freeze ❄️</span>
             </button>
-            {streakFreezes <= 0 && (
-              <p style={{ fontSize: '0.75rem', color: 'var(--danger)', marginTop: '0.4rem', textAlign: 'center' }}>
-                No freezes available. Ask an administrator for more freezes!
-              </p>
-            )}
           </div>
         )}
       </div>

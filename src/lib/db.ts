@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Profile, Activity, Streak, UserProgress, Notification, StreakFreezeUsage } from '../types';
+import { Profile, Activity, Streak, UserProgress, Notification, StreakFreezeUsage, Quiz, QuizSubmission } from '../types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -447,6 +447,11 @@ export async function logActivity(
         .single();
 
       if (!error && data) {
+        const multiplier = await getPointsPerProblem();
+        const earned = count * multiplier;
+        const { data: prof } = await supabase.from('profiles').select('points').eq('id', profileId).single();
+        await supabase.from('profiles').update({ points: (prof?.points || 0) + earned }).eq('id', profileId);
+
         await updateProfileStreakOnActivityLog(profileId);
         return data;
       }
@@ -466,6 +471,11 @@ export async function logActivity(
         .single();
 
       if (!error && data) {
+        const multiplier = await getPointsPerProblem();
+        const earned = count * multiplier;
+        const { data: prof } = await supabase.from('profiles').select('points').eq('id', profileId).single();
+        await supabase.from('profiles').update({ points: (prof?.points || 0) + earned }).eq('id', profileId);
+
         await updateProfileStreakOnActivityLog(profileId);
         return data;
       }
@@ -503,6 +513,13 @@ export async function logActivity(
       created_at: new Date().toISOString(),
     };
     local.activities.push(updatedActivity);
+  }
+
+  const multiplier = await getPointsPerProblem();
+  const earned = count * multiplier;
+  const pIdx = local.profiles.findIndex(p => p.id === profileId);
+  if (pIdx > -1) {
+    local.profiles[pIdx].points = (local.profiles[pIdx].points || 0) + earned;
   }
 
   saveLocalStorageData(local.profiles, local.activities);
@@ -951,19 +968,15 @@ export async function adminAdjustStreakFreezes(userId: string, amount: number): 
  * Admin: Send a notification message to a specific user.
  */
 export async function adminSendNotification(userId: string, message: string): Promise<Notification> {
-  const notification: Notification = {
-    id: `notif-${Math.random().toString(36).substring(2, 11)}`,
-    user_id: userId,
-    message,
-    from_admin: true,
-    is_read: false,
-    created_at: new Date().toISOString(),
-  };
-
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase
       .from('notifications')
-      .insert(notification)
+      .insert({
+        user_id: userId,
+        message,
+        from_admin: true,
+        is_read: false,
+      })
       .select()
       .single();
 
@@ -972,6 +985,14 @@ export async function adminSendNotification(userId: string, message: string): Pr
   }
 
   // LocalStorage fallback
+  const notification: Notification = {
+    id: `notif-${Math.random().toString(36).substring(2, 11)}`,
+    user_id: userId,
+    message,
+    from_admin: true,
+    is_read: false,
+    created_at: new Date().toISOString(),
+  };
   const local = getLocalStorageData();
   local.notifications.push(notification);
   saveLocalStorageData(local.profiles, local.activities, local.notifications);
@@ -1041,3 +1062,467 @@ export async function markAllNotificationsRead(userId: string): Promise<void> {
   });
   saveLocalStorageData(local.profiles, local.activities, local.notifications);
 }
+
+/**
+ * Admin: Send a notification to all non-admin users.
+ */
+export async function adminSendNotificationToAll(message: string): Promise<void> {
+  invalidateCache();
+
+  const profiles = await getProfiles();
+  const recipientIds = profiles.filter(p => !p.is_admin).map(p => p.id);
+
+  if (isSupabaseConfigured && supabase) {
+    const rows = recipientIds.map(userId => ({
+      user_id: userId,
+      message,
+      from_admin: true,
+      is_read: false,
+    }));
+    if (rows.length > 0) {
+      const { error } = await supabase.from('notifications').insert(rows);
+      if (error) throw error;
+    }
+  } else {
+    const local = getLocalStorageData();
+    recipientIds.forEach(userId => {
+      local.notifications.push({
+        id: `notif-${Math.random().toString(36).substring(2, 11)}`,
+        user_id: userId,
+        message,
+        from_admin: true,
+        is_read: false,
+        created_at: new Date().toISOString(),
+      });
+    });
+    saveLocalStorageData(local.profiles, local.activities, local.notifications, local.streak_freeze_usages);
+  }
+}
+
+/**
+ * User: Send a message to the admin inbox.
+ */
+export async function userSendMessageToAdmin(userId: string, message: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        message,
+        from_admin: false,
+        is_read: false,
+      });
+    if (error) throw error;
+  } else {
+    const notification: Notification = {
+      id: `notif-${Math.random().toString(36).substring(2, 11)}`,
+      user_id: userId,
+      message,
+      from_admin: false,
+      is_read: false,
+      created_at: new Date().toISOString(),
+    };
+    const local = getLocalStorageData();
+    local.notifications.push(notification);
+    saveLocalStorageData(local.profiles, local.activities, local.notifications, local.streak_freeze_usages);
+  }
+}
+
+/**
+ * Admin: Retrieve all inbox messages sent from users.
+ */
+export async function getAdminMessages(): Promise<(Notification & { user_name: string })[]> {
+  let messages: Notification[] = [];
+  let profiles: { id: string; name: string }[] = [];
+
+  if (isSupabaseConfigured && supabase) {
+    const { data: notifData, error: notifErr } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('from_admin', false)
+      .order('created_at', { ascending: false });
+
+    if (notifErr) {
+      console.error('Error fetching admin messages:', notifErr);
+    } else {
+      messages = notifData || [];
+    }
+
+    const { data: profData, error: profErr } = await supabase
+      .from('profiles')
+      .select('id, name');
+
+    if (profErr) {
+      console.error('Error fetching profiles for admin messages:', profErr);
+    } else {
+      profiles = profData || [];
+    }
+  } else {
+    const local = getLocalStorageData();
+    messages = local.notifications
+      .filter(n => !n.from_admin)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    profiles = local.profiles;
+  }
+
+  const profileMap = new Map<string, string>();
+  profiles.forEach(p => profileMap.set(p.id, p.name));
+
+  return messages.map(m => ({
+    ...m,
+    user_name: profileMap.get(m.user_id) || 'Unknown User'
+  }));
+}
+
+// ─── Points & Settings Management ───────────────────────────────────────────
+
+/**
+ * Admin: Adjust a user's point balance manually.
+ */
+export async function adminAdjustPoints(userId: string, amount: number): Promise<void> {
+  invalidateCache();
+
+  let profile: Profile | null = null;
+  if (isSupabaseConfigured && supabase) {
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    profile = data;
+  } else {
+    const local = getLocalStorageData();
+    profile = local.profiles.find(p => p.id === userId) || null;
+  }
+
+  if (!profile) return;
+
+  const currentPoints = profile.points ?? 0;
+  const newPoints = Math.max(0, currentPoints + amount);
+
+  if (isSupabaseConfigured && supabase) {
+    await supabase
+      .from('profiles')
+      .update({ points: newPoints })
+      .eq('id', userId);
+  } else {
+    const local = getLocalStorageData();
+    const idx = local.profiles.findIndex(p => p.id === userId);
+    if (idx !== -1) {
+      local.profiles[idx].points = newPoints;
+      saveLocalStorageData(local.profiles, local.activities, local.notifications);
+    }
+  }
+}
+
+/**
+ * Get the points-per-problem configuration.
+ */
+export async function getPointsPerProblem(): Promise<number> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from('admin_settings')
+      .select('value')
+      .eq('key', 'points_per_problem')
+      .maybeSingle();
+    if (!error && data && data.value) {
+      return parseInt(data.value) || 10;
+    }
+  }
+  
+  if (typeof window !== 'undefined') {
+    const localVal = localStorage.getItem('tracker_points_per_problem');
+    if (localVal) return parseInt(localVal) || 10;
+  }
+  return 10; // default
+}
+
+/**
+ * Update the points-per-problem configuration.
+ */
+export async function updatePointsPerProblem(val: number): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    await supabase
+      .from('admin_settings')
+      .upsert({ key: 'points_per_problem', value: String(val) });
+  }
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('tracker_points_per_problem', String(val));
+  }
+}
+
+// ─── Quiz & Challenge Management ─────────────────────────────────────────────
+
+/**
+ * Fetch all quizzes sorted by newest first.
+ */
+export async function getQuizzes(): Promise<Quiz[]> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from('quizzes')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (!error && data) return data;
+  }
+  
+  // LocalStorage fallback
+  if (typeof window !== 'undefined') {
+    const data = localStorage.getItem('tracker_quizzes');
+    return data ? JSON.parse(data) : [];
+  }
+  return [];
+}
+
+/**
+ * Create a new quiz question (admin only).
+ */
+export async function addQuiz(quiz: Omit<Quiz, 'id' | 'created_at'>): Promise<Quiz> {
+  const newQuiz: Quiz = {
+    id: `quiz-${Math.random().toString(36).substring(2, 11)}`,
+    ...quiz,
+    created_at: new Date().toISOString()
+  };
+
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from('quizzes')
+      .insert({
+        title: quiz.title,
+        description: quiz.description,
+        option_a: quiz.option_a,
+        option_b: quiz.option_b,
+        option_c: quiz.option_c,
+        option_d: quiz.option_d,
+        correct_option: quiz.correct_option,
+        reward_type: quiz.reward_type,
+        reward_amount: quiz.reward_amount,
+      })
+      .select()
+      .single();
+    if (!error && data) return data;
+    throw error || new Error('Failed to insert quiz in Supabase');
+  }
+
+  // LocalStorage fallback
+  const quizzes = await getQuizzes();
+  quizzes.push(newQuiz);
+  localStorage.setItem('tracker_quizzes', JSON.stringify(quizzes));
+  return newQuiz;
+}
+
+/**
+ * Update an existing quiz question (admin only).
+ */
+export async function updateQuiz(id: string, quizData: Partial<Quiz>): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase
+      .from('quizzes')
+      .update(quizData)
+      .eq('id', id);
+    if (error) throw error;
+    return;
+  }
+
+  const quizzes = await getQuizzes();
+  const idx = quizzes.findIndex(q => q.id === id);
+  if (idx > -1) {
+    quizzes[idx] = { ...quizzes[idx], ...quizData };
+    localStorage.setItem('tracker_quizzes', JSON.stringify(quizzes));
+  }
+}
+
+/**
+ * Delete a quiz question (admin only).
+ */
+export async function deleteQuiz(id: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase
+      .from('quizzes')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return;
+  }
+
+  const quizzes = await getQuizzes();
+  const updated = quizzes.filter(q => q.id !== id);
+  localStorage.setItem('tracker_quizzes', JSON.stringify(updated));
+}
+
+/**
+ * Fetch all quiz answers submitted by a user.
+ */
+export async function getUserSubmissions(userId: string): Promise<QuizSubmission[]> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from('quiz_submissions')
+      .select('*')
+      .eq('user_id', userId);
+    if (!error && data) return data;
+  }
+
+  if (typeof window !== 'undefined') {
+    const data = localStorage.getItem('tracker_quiz_submissions');
+    const all = data ? JSON.parse(data) : [];
+    return all.filter((s: QuizSubmission) => s.user_id === userId);
+  }
+  return [];
+}
+
+/**
+ * Submit an answer to a quiz and award the reward if correct.
+ */
+export async function submitQuizAnswer(
+  userId: string,
+  quizId: string,
+  selectedOption: string
+): Promise<{ isCorrect: boolean; rewardEarned: string }> {
+  // 1. Fetch Quiz Details
+  let quiz: Quiz | null = null;
+  if (isSupabaseConfigured && supabase) {
+    const { data } = await supabase.from('quizzes').select('*').eq('id', quizId).single();
+    quiz = data;
+  } else {
+    const quizzes = await getQuizzes();
+    quiz = quizzes.find(q => q.id === quizId) || null;
+  }
+
+  if (!quiz) throw new Error('Quiz not found');
+
+  const isCorrect = quiz.correct_option === selectedOption;
+  let rewardEarned = 'None';
+
+  if (isCorrect) {
+    rewardEarned = `+${quiz.reward_amount} ${quiz.reward_type}`;
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    // Check if they already answered to prevent duplicate insert errors
+    const { data: existing } = await supabase
+      .from('quiz_submissions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('quiz_id', quizId)
+      .maybeSingle();
+
+    if (existing) {
+      throw new Error('You have already answered this quiz question.');
+    }
+
+    const { error: insertErr } = await supabase
+      .from('quiz_submissions')
+      .insert({
+        user_id: userId,
+        quiz_id: quizId,
+        selected_option: selectedOption,
+        is_correct: isCorrect,
+        reward_earned: isCorrect ? rewardEarned : null,
+      });
+
+    if (insertErr) throw insertErr;
+
+    // 3. Grant Reward if correct
+    if (isCorrect) {
+      if (quiz.reward_type === 'points') {
+        const { data: profile } = await supabase.from('profiles').select('points').eq('id', userId).single();
+        const currentPoints = profile?.points || 0;
+        await supabase
+          .from('profiles')
+          .update({ points: currentPoints + quiz.reward_amount })
+          .eq('id', userId);
+      } else if (quiz.reward_type === 'freeze') {
+        const { data: profile } = await supabase.from('profiles').select('streak_freezes').eq('id', userId).single();
+        const currentFreezes = profile?.streak_freezes || 0;
+        await supabase
+          .from('profiles')
+          .update({ streak_freezes: currentFreezes + quiz.reward_amount })
+          .eq('id', userId);
+      }
+    }
+  } else {
+    // LocalStorage Fallback
+    const local = getLocalStorageData();
+    const dataSub = localStorage.getItem('tracker_quiz_submissions');
+    const allSubs = dataSub ? JSON.parse(dataSub) : [];
+    
+    const exists = allSubs.some((s: QuizSubmission) => s.user_id === userId && s.quiz_id === quizId);
+    if (exists) {
+      throw new Error('You have already answered this quiz question.');
+    }
+
+    const submission: QuizSubmission = {
+      id: `sub-${Math.random().toString(36).substring(2, 11)}`,
+      user_id: userId,
+      quiz_id: quizId,
+      selected_option: selectedOption,
+      is_correct: isCorrect,
+      reward_earned: isCorrect ? rewardEarned : null,
+      created_at: new Date().toISOString()
+    };
+    allSubs.push(submission);
+    localStorage.setItem('tracker_quiz_submissions', JSON.stringify(allSubs));
+
+    if (isCorrect) {
+      const pIdx = local.profiles.findIndex(p => p.id === userId);
+      if (pIdx > -1) {
+        const currentProf = local.profiles[pIdx];
+        if (quiz.reward_type === 'points') {
+          local.profiles[pIdx].points = (currentProf.points || 0) + quiz.reward_amount;
+        } else if (quiz.reward_type === 'freeze') {
+          local.profiles[pIdx].streak_freezes = (currentProf.streak_freezes || 0) + quiz.reward_amount;
+        }
+        saveLocalStorageData(local.profiles, local.activities, local.notifications);
+      }
+    }
+  }
+
+  // Invalidate user cache to ensure statistics update immediately
+  invalidateCache(`progress_${userId}`);
+  invalidateCache('profiles');
+
+  return { isCorrect, rewardEarned };
+}
+
+/**
+ * Admin: Retrieve all quiz submissions with user names and quiz details.
+ */
+export async function getQuizSubmissionsForAdmin(): Promise<(QuizSubmission & { user_name: string; quiz_title: string; correct_option: string })[]> {
+  let submissions: QuizSubmission[] = [];
+  let profiles: any[] = [];
+  let quizzes: any[] = [];
+
+  if (isSupabaseConfigured && supabase) {
+    const { data: subData, error: subErr } = await supabase.from('quiz_submissions').select('*');
+    if (subErr) console.error(subErr);
+    else submissions = subData || [];
+
+    const { data: profData, error: profErr } = await supabase.from('profiles').select('id, name');
+    if (profErr) console.error(profErr);
+    else profiles = profData || [];
+
+    const { data: quizData, error: quizErr } = await supabase.from('quizzes').select('id, title, correct_option');
+    if (quizErr) console.error(quizErr);
+    else quizzes = quizData || [];
+  } else {
+    if (typeof window !== 'undefined') {
+      const localSub = localStorage.getItem('tracker_quiz_submissions');
+      submissions = localSub ? JSON.parse(localSub) : [];
+    }
+    const local = getLocalStorageData();
+    profiles = local.profiles;
+    quizzes = await getQuizzes();
+  }
+
+  const profileMap = new Map<string, string>();
+  profiles.forEach(p => profileMap.set(p.id, p.name));
+
+  const quizMap = new Map<string, { title: string; correct_option: string }>();
+  quizzes.forEach(q => quizMap.set(q.id, { title: q.title, correct_option: q.correct_option }));
+
+  return submissions.map(s => {
+    const quizInfo = quizMap.get(s.quiz_id) || { title: 'Unknown Quiz', correct_option: 'N/A' };
+    return {
+      ...s,
+      user_name: profileMap.get(s.user_id) || 'Unknown User',
+      quiz_title: quizInfo.title,
+      correct_option: quizInfo.correct_option
+    };
+  });
+}
+
