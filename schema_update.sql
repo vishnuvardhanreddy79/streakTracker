@@ -19,6 +19,7 @@ CREATE TABLE profiles (
     streak_frozen BOOLEAN NOT NULL DEFAULT FALSE,
     last_active_date DATE DEFAULT NULL,
     streak_freezes INTEGER NOT NULL DEFAULT 0,
+    admin_streak_override INTEGER DEFAULT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 

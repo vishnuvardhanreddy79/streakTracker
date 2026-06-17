@@ -325,8 +325,15 @@ export async function getUserProgress(profileId: string): Promise<UserProgress |
 
   // Recalculate streak dynamically based on activities list and freezeDates
   const dynamicStreak = calculateStreak(activities, freezeDates);
-  let current_streak = dynamicStreak.currentStreak;
-  const longest_streak = Math.max(profile.longest_streak ?? 0, dynamicStreak.longestStreak, dynamicStreak.currentStreak);
+  let current_streak = (profile.admin_streak_override !== null && profile.admin_streak_override !== undefined)
+    ? profile.admin_streak_override
+    : dynamicStreak.currentStreak;
+  const longest_streak = Math.max(
+    profile.longest_streak ?? 0,
+    dynamicStreak.longestStreak,
+    dynamicStreak.currentStreak,
+    current_streak
+  );
   let last_active_date = dynamicStreak.lastActiveDate;
   let streak_frozen = profile.streak_frozen ?? false;
   const streak_freezes = profile.streak_freezes ?? 0;
@@ -347,7 +354,8 @@ export async function getUserProgress(profileId: string): Promise<UserProgress |
                       profile.longest_streak !== longest_streak ||
                       profile.last_active_date !== last_active_date ||
                       profile.streak_frozen !== streak_frozen ||
-                      profile.streak_freezes === undefined;
+                      profile.streak_freezes === undefined ||
+                      profile.admin_streak_override === undefined;
 
   if (needsUpdate) {
     if (isSupabaseConfigured && supabase) {
@@ -358,7 +366,8 @@ export async function getUserProgress(profileId: string): Promise<UserProgress |
           longest_streak,
           last_active_date,
           streak_frozen,
-          streak_freezes
+          streak_freezes,
+          admin_streak_override: profile.admin_streak_override ?? null
         })
         .eq('id', profileId);
     } else {
@@ -370,6 +379,7 @@ export async function getUserProgress(profileId: string): Promise<UserProgress |
         local.profiles[idx].last_active_date = last_active_date;
         local.profiles[idx].streak_frozen = streak_frozen;
         local.profiles[idx].streak_freezes = streak_freezes;
+        local.profiles[idx].admin_streak_override = profile.admin_streak_override ?? null;
         saveLocalStorageData(local.profiles, local.activities, local.notifications);
       }
     }
@@ -378,6 +388,7 @@ export async function getUserProgress(profileId: string): Promise<UserProgress |
     profile.last_active_date = last_active_date;
     profile.streak_frozen = streak_frozen;
     profile.streak_freezes = streak_freezes;
+    profile.admin_streak_override = profile.admin_streak_override ?? null;
   } else {
     profile.streak_freezes = streak_freezes;
   }
@@ -670,7 +681,9 @@ export async function getAdminDashboardData() {
 
   const usersWithStreaks = trainees.map(profile => {
     const streak: Streak = {
-      currentStreak: profile.current_streak ?? 0,
+      currentStreak: (profile.admin_streak_override !== null && profile.admin_streak_override !== undefined)
+        ? profile.admin_streak_override
+        : (profile.current_streak ?? 0),
       longestStreak: profile.longest_streak ?? 0,
       lastActiveDate: profile.last_active_date ?? null,
       isFrozen: profile.streak_frozen ?? false,
@@ -708,50 +721,29 @@ export async function getAdminDashboardData() {
  */
 export async function adminIncreaseStreak(userId: string, days: number): Promise<void> {
   invalidateCache();
+  invalidateCache(`progress_${userId}`);
 
-  let profile: Profile | null = null;
-  if (isSupabaseConfigured && supabase) {
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
-    profile = data;
-  } else {
-    const local = getLocalStorageData();
-    profile = local.profiles.find(p => p.id === userId) || null;
-  }
+  const progress = await getUserProgress(userId);
+  if (!progress) return;
 
-  if (!profile) return;
-
-  const current_streak = profile.current_streak ?? 0;
-  const longest_streak = profile.longest_streak ?? 0;
-  const newCurrent = current_streak + days;
-  const newLongest = Math.max(longest_streak, newCurrent);
-
-  const todayStr = getLocalDateString();
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = getLocalDateString(yesterday);
-  const newLastActive = (profile.last_active_date === todayStr || profile.last_active_date === yesterdayStr)
-    ? profile.last_active_date
-    : todayStr;
+  const newStreak = progress.streak.currentStreak + days;
 
   if (isSupabaseConfigured && supabase) {
     await supabase
       .from('profiles')
-      .update({
-        current_streak: newCurrent,
-        longest_streak: newLongest,
-        last_active_date: newLastActive
-      })
+      .update({ admin_streak_override: newStreak })
       .eq('id', userId);
   } else {
     const local = getLocalStorageData();
     const idx = local.profiles.findIndex(p => p.id === userId);
     if (idx !== -1) {
-      local.profiles[idx].current_streak = newCurrent;
-      local.profiles[idx].longest_streak = newLongest;
-      local.profiles[idx].last_active_date = newLastActive;
+      local.profiles[idx].admin_streak_override = newStreak;
       saveLocalStorageData(local.profiles, local.activities, local.notifications);
     }
   }
+
+  invalidateCache(`progress_${userId}`);
+  await getUserProgress(userId);
 }
 
 /**
@@ -760,6 +752,68 @@ export async function adminIncreaseStreak(userId: string, days: number): Promise
  */
 export async function adminDecreaseStreak(userId: string, days: number): Promise<void> {
   invalidateCache();
+  invalidateCache(`progress_${userId}`);
+
+  const progress = await getUserProgress(userId);
+  if (!progress) return;
+
+  const current = progress.streak.currentStreak;
+  const target = Math.max(0, current - days);
+  
+  // Calculate dynamic streak to see if it matches target
+  const dynamicStreak = calculateStreak(progress.activities, progress.freezeDates || []);
+  const overrideVal = (target === dynamicStreak.currentStreak) ? null : target;
+
+  if (isSupabaseConfigured && supabase) {
+    await supabase
+      .from('profiles')
+      .update({ admin_streak_override: overrideVal })
+      .eq('id', userId);
+  } else {
+    const local = getLocalStorageData();
+    const idx = local.profiles.findIndex(p => p.id === userId);
+    if (idx !== -1) {
+      local.profiles[idx].admin_streak_override = overrideVal;
+      saveLocalStorageData(local.profiles, local.activities, local.notifications);
+    }
+  }
+
+  invalidateCache(`progress_${userId}`);
+  await getUserProgress(userId);
+}
+
+/**
+ * Admin: Stop/Reset a user's streak. Sets current streak to 0 and clears last active date.
+ * Keeps the longest/best streak untouched!
+ */
+export async function adminRemoveStreak(userId: string): Promise<void> {
+  invalidateCache();
+  invalidateCache(`progress_${userId}`);
+
+  if (isSupabaseConfigured && supabase) {
+    await supabase
+      .from('profiles')
+      .update({ admin_streak_override: 0 })
+      .eq('id', userId);
+  } else {
+    const local = getLocalStorageData();
+    const idx = local.profiles.findIndex(p => p.id === userId);
+    if (idx !== -1) {
+      local.profiles[idx].admin_streak_override = 0;
+      saveLocalStorageData(local.profiles, local.activities, local.notifications);
+    }
+  }
+
+  invalidateCache(`progress_${userId}`);
+  await getUserProgress(userId);
+}
+
+/**
+ * Admin: Adjust a user's longest/best streak.
+ */
+export async function adminAdjustLongestStreak(userId: string, offset: number): Promise<void> {
+  invalidateCache();
+  invalidateCache(`progress_${userId}`);
 
   let profile: Profile | null = null;
   if (isSupabaseConfigured && supabase) {
@@ -772,52 +826,24 @@ export async function adminDecreaseStreak(userId: string, days: number): Promise
 
   if (!profile) return;
 
-  const current_streak = profile.current_streak ?? 0;
-  const newCurrent = Math.max(0, current_streak - days);
+  const newLongest = Math.max(0, (profile.longest_streak ?? 0) + offset);
 
   if (isSupabaseConfigured && supabase) {
     await supabase
       .from('profiles')
-      .update({
-        current_streak: newCurrent
-      })
+      .update({ longest_streak: newLongest })
       .eq('id', userId);
   } else {
     const local = getLocalStorageData();
     const idx = local.profiles.findIndex(p => p.id === userId);
     if (idx !== -1) {
-      local.profiles[idx].current_streak = newCurrent;
+      local.profiles[idx].longest_streak = newLongest;
       saveLocalStorageData(local.profiles, local.activities, local.notifications);
     }
   }
-}
 
-/**
- * Admin: Stop/Reset a user's streak. Sets current streak to 0 and clears last active date.
- * Keeps the longest/best streak untouched!
- */
-export async function adminRemoveStreak(userId: string): Promise<void> {
-  invalidateCache();
-
-  if (isSupabaseConfigured && supabase) {
-    await supabase
-      .from('profiles')
-      .update({
-        current_streak: 0,
-        last_active_date: null
-      })
-      .eq('id', userId);
-    return;
-  }
-
-  // LocalStorage fallback
-  const local = getLocalStorageData();
-  const idx = local.profiles.findIndex(p => p.id === userId);
-  if (idx !== -1) {
-    local.profiles[idx].current_streak = 0;
-    local.profiles[idx].last_active_date = null;
-    saveLocalStorageData(local.profiles, local.activities, local.notifications);
-  }
+  invalidateCache(`progress_${userId}`);
+  await getUserProgress(userId);
 }
 
 /**
@@ -923,6 +949,9 @@ export async function consumeStreakFreeze(profileId: string): Promise<void> {
     }
     saveLocalStorageData(local.profiles, local.activities, local.notifications, local.streak_freeze_usages);
   }
+
+  invalidateCache(`progress_${profileId}`);
+  await getUserProgress(profileId);
 }
 
 /**
@@ -930,6 +959,7 @@ export async function consumeStreakFreeze(profileId: string): Promise<void> {
  */
 export async function adminAdjustStreakFreezes(userId: string, amount: number): Promise<void> {
   invalidateCache();
+  invalidateCache(`progress_${userId}`);
 
   let profile: Profile | null = null;
   if (isSupabaseConfigured && supabase) {
@@ -960,6 +990,9 @@ export async function adminAdjustStreakFreezes(userId: string, amount: number): 
       saveLocalStorageData(local.profiles, local.activities, local.notifications);
     }
   }
+
+  invalidateCache(`progress_${userId}`);
+  await getUserProgress(userId);
 }
 
 // ─── Notification System ────────────────────────────────────────────────────
@@ -1174,6 +1207,51 @@ export async function getAdminMessages(): Promise<(Notification & { user_name: s
   }));
 }
 
+/**
+ * Admin: Retrieve all notifications (both system broadcasts and trainee direct messages)
+ */
+export async function getAllNotificationsForAdmin(): Promise<(Notification & { user_name: string })[]> {
+  let notifications: Notification[] = [];
+  let profiles: { id: string; name: string }[] = [];
+
+  if (isSupabaseConfigured && supabase) {
+    const { data: notifData, error: notifError } = await supabase
+      .from('notifications')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (notifError) {
+      console.error('Error fetching all notifications for admin:', notifError);
+    } else {
+      notifications = notifData || [];
+    }
+
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, name');
+
+    if (profileError) {
+      console.error('Error fetching profiles for notifications:', profileError);
+    } else {
+      profiles = profileData || [];
+    }
+  } else {
+    const local = getLocalStorageData();
+    notifications = [...local.notifications].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    profiles = local.profiles;
+  }
+
+  const profileNameMap = new Map<string, string>();
+  profiles.forEach(p => profileNameMap.set(p.id, p.name));
+
+  return notifications.map(notif => ({
+    ...notif,
+    user_name: profileNameMap.get(notif.user_id) || 'Unknown User'
+  }));
+}
+
 // ─── Points & Settings Management ───────────────────────────────────────────
 
 /**
@@ -1181,6 +1259,7 @@ export async function getAdminMessages(): Promise<(Notification & { user_name: s
  */
 export async function adminAdjustPoints(userId: string, amount: number): Promise<void> {
   invalidateCache();
+  invalidateCache(`progress_${userId}`);
 
   let profile: Profile | null = null;
   if (isSupabaseConfigured && supabase) {
@@ -1209,6 +1288,9 @@ export async function adminAdjustPoints(userId: string, amount: number): Promise
       saveLocalStorageData(local.profiles, local.activities, local.notifications);
     }
   }
+
+  invalidateCache(`progress_${userId}`);
+  await getUserProgress(userId);
 }
 
 /**

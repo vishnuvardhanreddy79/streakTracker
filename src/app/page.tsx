@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Profile, UserProgress, Quiz, QuizSubmission } from '../types';
+import { Profile, UserProgress, Quiz, QuizSubmission, Notification } from '../types';
 import {
   getUserProgress,
   logActivity,
@@ -17,12 +17,14 @@ import {
   getQuizzes,
   getUserSubmissions,
   submitQuizAnswer,
+  getUserNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
 } from '../lib/db';
 import StreakCard from '../components/StreakCard';
 import Heatmap from '../components/Heatmap';
 import BarGraph from '../components/BarGraph';
 import ActivityForm from '../components/ActivityForm';
-import NotificationBell from '../components/NotificationBell';
 
 export default function Home() {
   const router = useRouter();
@@ -40,6 +42,10 @@ export default function Home() {
   const [quizSubmitting, setQuizSubmitting] = useState<Record<string, boolean>>({});
   const [quizResults, setQuizResults] = useState<Record<string, { isCorrect: boolean; rewardEarned: string }>>({});
   const [quizErrors, setQuizErrors] = useState<Record<string, string>>({});
+
+  // UI Navigation and Notification states
+  const [activeTab, setActiveTab] = useState<'home' | 'activity' | 'challenges' | 'leaderboard' | 'messages' | 'notifications'>('home');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   // Fetch dashboard progress, leaderboard, and challenges
   const loadDashboardData = useCallback(async (userId: string) => {
@@ -64,6 +70,9 @@ export default function Home() {
 
       const subList = await getUserSubmissions(userId);
       setSubmissions(subList);
+
+      const notifs = await getUserNotifications(userId);
+      setNotifications(notifs);
     } catch (err) {
       setDbError('Error loading dashboard metrics from database');
       console.error(err);
@@ -90,6 +99,34 @@ export default function Home() {
     init();
   }, [router, loadDashboardData]);
 
+  // Poll for notifications
+  useEffect(() => {
+    if (!currentUser) return;
+    const interval = setInterval(async () => {
+      try {
+        const notifs = await getUserNotifications(currentUser.id);
+        setNotifications(notifs);
+      } catch (err) {
+        console.error('Error polling notifications:', err);
+      }
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
+  const handleMarkRead = useCallback(async (notifId: string) => {
+    if (!currentUser) return;
+    await markNotificationRead(notifId);
+    const notifs = await getUserNotifications(currentUser.id);
+    setNotifications(notifs);
+  }, [currentUser]);
+
+  const handleMarkAllRead = useCallback(async () => {
+    if (!currentUser) return;
+    await markAllNotificationsRead(currentUser.id);
+    const notifs = await getUserNotifications(currentUser.id);
+    setNotifications(notifs);
+  }, [currentUser]);
+
   const handleLogActivity = useCallback(async (
     date: string,
     count: number,
@@ -104,8 +141,13 @@ export default function Home() {
 
   const handleUseFreeze = useCallback(async () => {
     if (!currentUser) return;
-    await consumeStreakFreeze(currentUser.id);
-    await loadDashboardData(currentUser.id);
+    try {
+      await consumeStreakFreeze(currentUser.id);
+      await loadDashboardData(currentUser.id);
+    } catch (err: any) {
+      console.error('Error using streak freeze:', err);
+      alert(err.message || 'Failed to use streak freeze.');
+    }
   }, [currentUser, loadDashboardData]);
 
   const handleQuizSubmit = useCallback(async (quizId: string) => {
@@ -219,7 +261,7 @@ export default function Home() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
       {/* Top Header Section */}
-      <header className="main-header">
+      <header className="main-header" style={{ gap: '1.5rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{
             background: 'linear-gradient(135deg, var(--primary) 0%, var(--success) 100%)',
@@ -233,16 +275,108 @@ export default function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
-          <div>
-            <h1 style={{ fontSize: '1.2rem', fontWeight: 800, letterSpacing: '0.05em' }}>
-              AETHER <span style={{ fontWeight: 300, color: 'var(--foreground-muted)' }}>TRACK</span>
-            </h1>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '0.05em', lineHeight: '1.1', color: '#fff' }}>
+              ASCEND
+            </span>
+            <span style={{ fontSize: '0.65rem', fontWeight: 500, color: 'var(--foreground-muted)', letterSpacing: '0.05em' }}>
+              by Consistency Club
+            </span>
           </div>
         </div>
 
+        {/* Top Navigation Bar */}
+        {currentUser && (
+          <nav style={{ display: 'flex', gap: '0.25rem', flexGrow: 1, justifyContent: 'center' }}>
+            {[
+              { id: 'home', label: 'Home', icon: '🏠' },
+              { id: 'activity', label: 'Activity', icon: '📈' },
+              { id: 'challenges', label: 'Challenges', icon: '🧠' },
+              { id: 'leaderboard', label: 'Leaderboard', icon: '🏆' },
+              { id: 'messages', label: 'Messages', icon: '💬' },
+              { id: 'notifications', label: 'Notifications', icon: '🔔' }
+            ].map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  style={{
+                    background: isActive ? 'rgba(14, 165, 233, 0.12)' : 'transparent',
+                    border: 'none',
+                    color: isActive ? 'var(--primary)' : 'var(--foreground-muted)',
+                    fontWeight: isActive ? 700 : 500,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    transition: 'var(--transition-smooth)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        )}
+
         {/* Right side: Notification Bell, DB Status Badge & Admin Link */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {currentUser && <NotificationBell userId={currentUser.id} />}
+          {currentUser && (
+            <button
+              onClick={() => setActiveTab('notifications')}
+              title="Notifications Center"
+              style={{
+                position: 'relative',
+                background: 'none',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '10px',
+                padding: '8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--foreground)',
+                transition: 'var(--transition-smooth)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--glass-border-hover)';
+                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--glass-border)';
+                e.currentTarget.style.background = 'none';
+              }}
+            >
+              <span style={{ fontSize: '1.05rem' }}>🔔</span>
+              {(() => {
+                const count = notifications.filter(n => !n.is_read && n.from_admin).length;
+                return count > 0 ? (
+                  <span style={{
+                    position: 'absolute',
+                    top: '-4px',
+                    right: '-4px',
+                    background: 'var(--danger)',
+                    color: '#fff',
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    borderRadius: '50%',
+                    width: '16px',
+                    height: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    {count}
+                  </span>
+                ) : null;
+              })()}
+            </button>
+          )}
 
           {currentUser?.is_admin && (
             <button
@@ -268,229 +402,259 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Grid Body */}
-      <main className="main-content-grid" style={{
+      {/* Main Content Body */}
+      <main style={{
         flexGrow: 1,
         padding: '2rem',
         maxWidth: '1200px',
         width: '100%',
         margin: '0 auto',
-        display: 'grid',
-        gridTemplateColumns: '300px 1fr',
-        gap: '2rem'
+        minWidth: 0,
       }}>
         
-        {/* Left Column - User Profile Info */}
-        <section style={{ height: 'fit-content', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', alignItems: 'center', textAlign: 'center' }}>
-             <div style={{ position: 'relative' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={currentUser?.avatar_url || (currentUser?.name ? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(currentUser.name)}` : '')}
-                alt={currentUser?.name}
-                style={{
-                  width: '90px',
-                  height: '90px',
-                  borderRadius: '50%',
-                  border: '3px solid rgba(255, 255, 255, 0.1)',
-                  boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
-                  objectFit: 'cover'
-                }}
-              />
-              <div style={{
-                position: 'absolute',
-                bottom: '4px',
-                right: '4px',
-                width: '18px',
-                height: '18px',
-                borderRadius: '50%',
-                background: 'var(--success)',
-                border: '2px solid var(--bg-main)',
-                display: 'inline-block'
-              }} />
-            </div>
-
-            <div>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>{currentUser?.name}</h2>
-              <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', marginTop: '0.25rem' }}>{currentUser?.email}</p>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
-              <label style={{
-                fontSize: '0.75rem',
-                color: 'var(--primary)',
-                cursor: avatarUploading ? 'not-allowed' : 'pointer',
-                border: '1px solid rgba(14, 165, 233, 0.3)',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                background: 'rgba(14, 165, 233, 0.05)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'var(--transition-smooth)',
-                opacity: avatarUploading ? 0.7 : 1,
-              }}>
-                <span>{avatarUploading ? '⏳ Uploading...' : '📷 Update DP'}</span>
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.webp,.gif"
-                  onChange={handleAvatarUpload}
-                  disabled={avatarUploading}
-                  style={{ display: 'none' }}
-                />
-              </label>
-              {avatarError && (
-                <span style={{ fontSize: '0.7rem', color: 'var(--danger)', marginTop: '4px' }}>
-                  {avatarError}
-                </span>
-              )}
-            </div>
-
-            <div style={{ width: '100%', borderTop: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8rem', textAlign: 'left', color: 'var(--foreground-muted)', paddingTop: '1.25rem' }}>
-              <div>
-                Joined:{' '}
-                <strong style={{ color: 'var(--foreground)' }}>
-                  {currentUser ? new Date(currentUser.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : ''}
-                </strong>
-              </div>
-              <div>
-                Total Points:{' '}
-                <strong style={{ color: 'var(--success)' }}>
-                  {currentUser?.points ?? 0} ⭐
-                </strong>
-              </div>
-              <div>
-                Trainee ID:{' '}
-                <code style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 4px', borderRadius: '4px', color: 'var(--primary)', wordBreak: 'break-all' }}>
-                  {currentUser?.id}
-                </code>
-              </div>
-            </div>
-
-            <button
-              onClick={handleSignOut}
-              className="btn-secondary"
-              style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}
-            >
-              Sign Out Account
-            </button>
+        {dbError && (
+          <div style={{
+            padding: '1rem',
+            borderRadius: '12px',
+            background: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            color: 'var(--danger)',
+            fontSize: '0.85rem',
+            marginBottom: '1.5rem'
+          }}>
+            {dbError}
           </div>
+        )}
 
-          {/* Send Message to Admin Form */}
-          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0, color: '#fff' }}>
-                Message Admin 🛡️
-              </h3>
-              <p style={{ fontSize: '0.75rem', color: 'var(--foreground-muted)', margin: '0.2rem 0 0 0' }}>
-                Have questions or need a streak adjustment? Send a note directly to the admin.
-              </p>
-            </div>
-
-            <form onSubmit={handleSendMessageToAdmin} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <textarea
-                className="input-field"
-                placeholder="Type your message here..."
-                value={adminMessageText}
-                onChange={(e) => setAdminMessageText(e.target.value)}
-                maxLength={300}
-                required
-                style={{
-                  minHeight: '80px',
-                  fontSize: '0.8rem',
-                  padding: '0.5rem 0.75rem',
-                  resize: 'vertical',
-                }}
-              />
-              <button
-                type="submit"
-                disabled={adminMessageSending || !adminMessageText.trim()}
-                className="btn-primary"
-                style={{
-                  width: '100%',
-                  padding: '0.5rem',
-                  fontSize: '0.8rem',
-                  opacity: adminMessageText.trim() ? 1 : 0.5,
-                }}
-              >
-                {adminMessageSending ? 'Sending...' : 'Send Message'}
-              </button>
-            </form>
-
-            {adminMessageSuccess && (
+        {userProgress && currentUser && (
+          <>
+            {/* 1. HOME TAB */}
+            {activeTab === 'home' && (
               <div style={{
-                fontSize: '0.75rem',
-                color: 'var(--success)',
-                textAlign: 'center',
-                background: 'rgba(16, 185, 129, 0.06)',
-                padding: '4px',
-                borderRadius: '4px',
+                display: 'grid',
+                gridTemplateColumns: '300px 1fr',
+                gap: '2rem'
               }}>
-                {adminMessageSuccess}
+                {/* Left Profile Column */}
+                <section style={{ height: 'fit-content', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', alignItems: 'center', textAlign: 'center' }}>
+                     <div style={{ position: 'relative' }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={currentUser?.avatar_url || (currentUser?.name ? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(currentUser.name)}` : '')}
+                        alt={currentUser?.name}
+                        style={{
+                          width: '90px',
+                          height: '90px',
+                          borderRadius: '50%',
+                          border: '3px solid rgba(255, 255, 255, 0.1)',
+                          boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
+                          objectFit: 'cover'
+                        }}
+                      />
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '4px',
+                        right: '4px',
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        background: 'var(--success)',
+                        border: '2px solid var(--bg-main)',
+                        display: 'inline-block'
+                      }} />
+                    </div>
+
+                    <div>
+                      <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>{currentUser?.name}</h2>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', marginTop: '0.25rem' }}>{currentUser?.email}</p>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                      <label style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--primary)',
+                        cursor: avatarUploading ? 'not-allowed' : 'pointer',
+                        border: '1px solid rgba(14, 165, 233, 0.3)',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        background: 'rgba(14, 165, 233, 0.05)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'var(--transition-smooth)',
+                        opacity: avatarUploading ? 0.7 : 1,
+                      }}>
+                        <span>{avatarUploading ? '⏳ Uploading...' : '📷 Update DP'}</span>
+                        <input
+                          type="file"
+                          accept=".jpg,.jpeg,.png,.webp,.gif"
+                          onChange={handleAvatarUpload}
+                          disabled={avatarUploading}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                      {avatarError && (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--danger)', marginTop: '4px' }}>
+                          {avatarError}
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ width: '100%', borderTop: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8rem', textAlign: 'left', color: 'var(--foreground-muted)', paddingTop: '1.25rem' }}>
+                      <div>
+                        Joined:{' '}
+                        <strong style={{ color: 'var(--foreground)' }}>
+                          {currentUser ? new Date(currentUser.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : ''}
+                        </strong>
+                      </div>
+                      <div>
+                        Total Points:{' '}
+                        <strong style={{ color: 'var(--success)' }}>
+                          {currentUser?.points ?? 0} ⭐
+                        </strong>
+                      </div>
+                      <div>
+                        Trainee ID:{' '}
+                        <code style={{ background: 'rgba(255,255,255,0.05)', padding: '2px 4px', borderRadius: '4px', color: 'var(--primary)', wordBreak: 'break-all' }}>
+                          {currentUser?.id}
+                        </code>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleSignOut}
+                      className="btn-secondary"
+                      style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}
+                    >
+                      Sign Out Account
+                    </button>
+                  </div>
+                </section>
+
+                {/* Right Cards Column */}
+                <section style={{ display: 'flex', flexDirection: 'column', gap: '2rem', minWidth: 0 }}>
+                  <div className="dashboard-top-row" style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '2rem' }}>
+                    <StreakCard
+                      streak={userProgress.streak}
+                      userName={currentUser.name}
+                      streakFreezes={userProgress.profile.streak_freezes}
+                      onUseFreeze={handleUseFreeze}
+                      activities={userProgress.activities}
+                      freezeDates={userProgress.freezeDates}
+                    />
+                    <ActivityForm
+                      userId={currentUser.id}
+                      userName={currentUser.name}
+                      onLogActivity={handleLogActivity}
+                    />
+                  </div>
+                </section>
               </div>
             )}
 
-            {adminMessageError && (
-              <div style={{
-                fontSize: '0.75rem',
-                color: 'var(--danger)',
-                textAlign: 'center',
-                background: 'rgba(239, 68, 68, 0.06)',
-                padding: '4px',
-                borderRadius: '4px',
-              }}>
-                {adminMessageError}
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Right Column - User Dashboard Details */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '2rem', minWidth: 0 }}>
-          
-          {dbError && (
-            <div style={{
-              padding: '1rem',
-              borderRadius: '12px',
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1px solid rgba(239, 68, 68, 0.25)',
-              color: 'var(--danger)',
-              fontSize: '0.85rem'
-            }}>
-              {dbError}
-            </div>
-          )}
-
-          {userProgress && currentUser && (
-            <>
-              {/* Row 1: Streak Card & Add Progress Side-by-Side */}
-              <div className="dashboard-top-row" style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '2rem' }}>
-                <StreakCard
-                  streak={userProgress.streak}
-                  userName={currentUser.name}
-                  streakFreezes={userProgress.profile.streak_freezes}
-                  onUseFreeze={handleUseFreeze}
+            {/* 2. ACTIVITY TAB */}
+            {activeTab === 'activity' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                <Heatmap
                   activities={userProgress.activities}
+                  userName={currentUser.name}
                   freezeDates={userProgress.freezeDates}
                 />
-                <ActivityForm
-                  userId={currentUser.id}
-                  userName={currentUser.name}
-                  onLogActivity={handleLogActivity}
-                />
+                
+                <BarGraph activities={userProgress.activities} />
+
+                {/* Chronological Activity History log */}
+                <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div>
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--foreground)' }}>
+                      Activity Logs History 📜
+                    </h2>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', marginTop: '0.25rem' }}>
+                      A chronological history of all your logged training accomplishments.
+                    </p>
+                  </div>
+
+                  <div style={{ overflowX: 'auto', border: '1px solid var(--glass-border)', borderRadius: '8px', background: 'rgba(0,0,0,0.15)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--foreground-muted)', background: 'rgba(255,255,255,0.02)' }}>
+                          <th style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>Date</th>
+                          <th style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>Category</th>
+                          <th style={{ padding: '0.75rem 1rem', fontWeight: 600, textAlign: 'center' }}>Problems</th>
+                          <th style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>Description/Notes</th>
+                          <th style={{ padding: '0.75rem 1rem', fontWeight: 600, textAlign: 'right' }}>Image Reference</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {userProgress.activities.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--foreground-dark)' }}>
+                              No study activities logged yet. Use the logging form on the Home tab!
+                            </td>
+                          </tr>
+                        ) : (
+                          [...userProgress.activities].sort((a,b) => b.date.localeCompare(a.date)).map(act => (
+                            <tr key={act.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.01)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                              <td style={{ padding: '0.75rem 1rem', fontWeight: 600, color: '#fff' }}>
+                                {new Date(act.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem' }}>
+                                <span style={{
+                                  fontSize: '0.75rem',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  background: 'rgba(14, 165, 233, 0.15)',
+                                  border: '1px solid rgba(14, 165, 233, 0.2)',
+                                  color: 'var(--primary)',
+                                  fontWeight: 600
+                                }}>
+                                  {act.category}
+                                </span>
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem', textAlign: 'center', fontWeight: 700, color: 'var(--success)' }}>
+                                {act.count}
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem', color: 'var(--foreground-muted)' }}>
+                                {act.notes || <em style={{ color: 'var(--foreground-dark)' }}>No notes provided</em>}
+                              </td>
+                              <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
+                                {act.image_url ? (
+                                  <a
+                                    href={act.image_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    style={{
+                                      fontSize: '0.75rem',
+                                      color: 'var(--primary)',
+                                      background: 'rgba(14, 165, 233, 0.05)',
+                                      border: '1px solid rgba(14, 165, 233, 0.25)',
+                                      padding: '3px 8px',
+                                      borderRadius: '4px',
+                                      textDecoration: 'none',
+                                      fontWeight: 500,
+                                      display: 'inline-block',
+                                      transition: 'var(--transition-smooth)'
+                                    }}
+                                  >
+                                    🖼️ View Upload
+                                  </a>
+                                ) : (
+                                  <span style={{ color: 'var(--foreground-dark)', fontSize: '0.75rem' }}>N/A</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
+            )}
 
-              {/* Row 2: Heatmap Visualizer */}
-              <Heatmap
-                activities={userProgress.activities}
-                userName={currentUser.name}
-                freezeDates={userProgress.freezeDates}
-              />
-
-              {/* Row 3: BarGraph breakdown */}
-              <BarGraph activities={userProgress.activities} />
-
-              {/* Row 4: Quiz / Challenge Section */}
+            {/* 3. CHALLENGES TAB */}
+            {activeTab === 'challenges' && (
               <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <div>
                   <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--foreground)' }}>
@@ -640,8 +804,10 @@ export default function Home() {
                   </div>
                 )}
               </div>
+            )}
 
-              {/* Row 5: Public Leaderboard */}
+            {/* 4. LEADERBOARD TAB */}
+            {activeTab === 'leaderboard' && (
               <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                   <div>
@@ -783,10 +949,219 @@ export default function Home() {
                   </table>
                 </div>
               </div>
-            </>
-          )}
+            )}
 
-        </section>
+            {/* 5. MESSAGES TAB (Dedicated User-Admin Chat log) */}
+            {activeTab === 'messages' && (
+              <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', minHeight: '500px' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--foreground)' }}>
+                    Message Admin 🛡️
+                  </h2>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', marginTop: '0.25rem' }}>
+                    Direct chat logs between you and the Consistency Club administrators.
+                  </p>
+                </div>
+
+                {/* Chat Message Stream */}
+                <div style={{
+                  flexGrow: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1rem',
+                  padding: '1.25rem',
+                  background: 'rgba(0,0,0,0.2)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: '10px',
+                  maxHeight: '350px',
+                  overflowY: 'auto',
+                }}>
+                  {notifications.length === 0 ? (
+                    <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--foreground-dark)', fontSize: '0.85rem' }}>
+                      No chat messages. Type a message below to initiate contact with the administrator.
+                    </div>
+                  ) : (
+                    [...notifications]
+                      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                      .map(msg => {
+                        const isAdminMsg = msg.from_admin;
+                        return (
+                          <div
+                            key={msg.id}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignSelf: isAdminMsg ? 'flex-start' : 'flex-end',
+                              maxWidth: '75%',
+                              gap: '2px'
+                            }}
+                          >
+                            <div style={{
+                              fontSize: '0.65rem',
+                              color: 'var(--foreground-dark)',
+                              textAlign: isAdminMsg ? 'left' : 'right',
+                              padding: '0 4px'
+                            }}>
+                              {isAdminMsg ? 'Club Admin' : 'You'} • {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                            <div style={{
+                              background: isAdminMsg ? 'rgba(255, 255, 255, 0.06)' : 'rgba(14, 165, 233, 0.15)',
+                              border: isAdminMsg ? '1px solid var(--glass-border)' : '1px solid rgba(14, 165, 233, 0.3)',
+                              padding: '0.6rem 0.9rem',
+                              borderRadius: isAdminMsg ? '12px 12px 12px 2px' : '12px 12px 2px 12px',
+                              color: '#fff',
+                              fontSize: '0.85rem',
+                              wordBreak: 'break-word',
+                              whiteSpace: 'pre-wrap'
+                            }}>
+                              {msg.message}
+                            </div>
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+
+                {/* Message input bar */}
+                <form onSubmit={handleSendMessageToAdmin} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
+                  <textarea
+                    className="input-field"
+                    placeholder="Type a message to the administrator..."
+                    value={adminMessageText}
+                    onChange={(e) => setAdminMessageText(e.target.value)}
+                    maxLength={300}
+                    required
+                    style={{
+                      flexGrow: 1,
+                      minHeight: '44px',
+                      height: '44px',
+                      fontSize: '0.85rem',
+                      padding: '0.6rem 0.75rem',
+                      resize: 'none',
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (adminMessageText.trim() && !adminMessageSending) {
+                          handleSendMessageToAdmin(e);
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={adminMessageSending || !adminMessageText.trim()}
+                    className="btn-primary"
+                    style={{
+                      padding: '0.6rem 1.25rem',
+                      fontSize: '0.85rem',
+                      height: '44px',
+                      opacity: adminMessageText.trim() ? 1 : 0.5,
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {adminMessageSending ? 'Sending...' : 'Send Message'}
+                  </button>
+                </form>
+
+                {adminMessageSuccess && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--success)', textAlign: 'center', background: 'rgba(16, 185, 129, 0.06)', padding: '6px', borderRadius: '4px' }}>
+                    {adminMessageSuccess}
+                  </div>
+                )}
+                {adminMessageError && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--danger)', textAlign: 'center', background: 'rgba(239, 68, 68, 0.06)', padding: '6px', borderRadius: '4px' }}>
+                    {adminMessageError}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 6. NOTIFICATIONS TAB (Notification Center) */}
+            {activeTab === 'notifications' && (
+              <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem' }}>
+                  <div>
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--foreground)' }}>
+                      Notification Center 🔔
+                    </h2>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', marginTop: '0.25rem' }}>
+                      Updates and system announcements sent by Consistency Club administrators.
+                    </p>
+                  </div>
+                  {notifications.filter(n => !n.is_read && n.from_admin).length > 0 && (
+                    <button
+                      onClick={handleMarkAllRead}
+                      className="btn-secondary"
+                      style={{ fontSize: '0.75rem', padding: '0.4rem 0.8rem' }}
+                    >
+                      ✓ Mark all as read
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {(() => {
+                    const adminNotifs = notifications.filter(n => n.from_admin);
+                    if (adminNotifs.length === 0) {
+                      return (
+                        <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--foreground-dark)', fontSize: '0.85rem' }}>
+                          No notifications or announcements found.
+                        </div>
+                      );
+                    }
+                    return adminNotifs.map(notif => (
+                      <div
+                        key={notif.id}
+                        style={{
+                          background: notif.is_read ? 'rgba(255,255,255,0.01)' : 'rgba(14, 165, 233, 0.04)',
+                          border: notif.is_read ? '1px solid var(--glass-border)' : '1px solid rgba(14, 165, 233, 0.2)',
+                          borderRadius: '8px',
+                          padding: '1rem',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: '1rem'
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+                          <p style={{ fontSize: '0.85rem', color: notif.is_read ? 'var(--foreground-muted)' : '#fff', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                            {notif.message}
+                          </p>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--foreground-dark)' }}>
+                            {new Date(notif.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        {!notif.is_read && (
+                          <button
+                            onClick={() => handleMarkRead(notif.id)}
+                            style={{
+                              fontSize: '0.75rem',
+                              color: 'var(--primary)',
+                              background: 'rgba(14, 165, 233, 0.08)',
+                              border: '1px solid rgba(14, 165, 233, 0.25)',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontWeight: 600,
+                              whiteSpace: 'nowrap',
+                              transition: 'var(--transition-smooth)'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(14, 165, 233, 0.15)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(14, 165, 233, 0.08)'}
+                          >
+                            ✓ Mark read
+                          </button>
+                        )}
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
       </main>
 
       {/* Footer */}

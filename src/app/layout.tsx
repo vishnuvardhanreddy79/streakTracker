@@ -9,7 +9,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Aether | Educational Progress & Streak Tracker",
+  title: "Ascend | Educational Progress & Streak Tracker",
   description: "Track your daily study habits, LeetCode progress, and milestones using heatmaps, interactive graphs, and active streak challenges.",
 };
 

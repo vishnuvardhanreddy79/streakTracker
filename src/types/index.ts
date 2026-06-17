@@ -11,6 +11,7 @@ export interface Profile {
   last_active_date?: string | null;
   streak_freezes?: number;
   points?: number;
+  admin_streak_override?: number | null;
 }
 
 export interface Activity {

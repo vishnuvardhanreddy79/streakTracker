@@ -1,0 +1,52 @@
+[
+  {
+    "step_index": 542,
+    "created_at": "2026-06-17T06:16:14Z",
+    "name": "replace_file_content",
+    "description": "\"Import adminSendNotificationToAll and getAdminMessages in admin/page.tsx.\"",
+    "hasTargetContent": true,
+    "hasReplacementContent": true,
+    "hasCodeContent": false,
+    "hasReplacementChunks": false
+  },
+  {
+    "step_index": 550,
+    "created_at": "2026-06-17T06:16:48Z",
+    "name": "replace_file_content",
+    "description": "\"Add adminMessages state and update loadData to fetch user messages.\"",
+    "hasTargetContent": true,
+    "hasReplacementContent": true,
+    "hasCodeContent": false,
+    "hasReplacementChunks": false
+  },
+  {
+    "step_index": 554,
+    "created_at": "2026-06-17T06:17:08Z",
+    "name": "replace_file_content",
+    "description": "\"Refactor handleSendNotification to support sending to all users when notifTarget is 'all'.\"",
+    "hasTargetContent": true,
+    "hasReplacementContent": true,
+    "hasCodeContent": false,
+    "hasReplacementChunks": false
+  },
+  {
+    "step_index": 558,
+    "created_at": "2026-06-17T06:17:30Z",
+    "name": "replace_file_content",
+    "description": "\"Add broadcast notification composer to the admin leaderboard panel in admin/page.tsx.\"",
+    "hasTargetContent": true,
+    "hasReplacementContent": true,
+    "hasCodeContent": false,
+    "hasReplacementChunks": false
+  },
+  {
+    "step_index": 564,
+    "created_at": "2026-06-17T06:18:01Z",
+    "name": "replace_file_content",
+    "description": "\"Add Trainee Messages Inbox panel to the admin dashboard.\"",
+    "hasTargetContent": true,
+    "hasReplacementContent": true,
+    "hasCodeContent": false,
+    "hasReplacementChunks": false
+  }
+]

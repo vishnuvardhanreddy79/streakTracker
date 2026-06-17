@@ -54,7 +54,7 @@ function LoginForm() {
       if (email.trim() === 'admin@aether.com' && password.trim() === 'admin123') {
         const adminProfile = {
           id: 'user-admin',
-          name: 'Aether Admin Manager',
+          name: 'Ascend Admin Manager',
           email: 'admin@aether.com',
           avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=admin',
           is_admin: true,
@@ -64,9 +64,12 @@ function LoginForm() {
         // Add admin user to profiles list in mock DB if not exists
         const localProfiles = localStorage.getItem('tracker_profiles');
         const profilesList = localProfiles ? JSON.parse(localProfiles) : [];
-        const exists = profilesList.find((p: { email?: string }) => p.email === 'admin@aether.com');
-        if (!exists) {
+        const adminIndex = profilesList.findIndex((p: { email?: string }) => p.email === 'admin@aether.com');
+        if (adminIndex === -1) {
           profilesList.push(adminProfile);
+          localStorage.setItem('tracker_profiles', JSON.stringify(profilesList));
+        } else if (profilesList[adminIndex].name.includes('Aether')) {
+          profilesList[adminIndex].name = 'Ascend Admin Manager';
           localStorage.setItem('tracker_profiles', JSON.stringify(profilesList));
         }
 
@@ -165,8 +168,11 @@ function LoginForm() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 800 }}>AETHER LOGIN</h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800 }}>ASCEND LOGIN</h1>
           <p style={{ fontSize: '0.85rem', color: 'var(--foreground-muted)', marginTop: '0.25rem' }}>
+            by Consistency Club
+          </p>
+          <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', marginTop: '0.25rem' }}>
             Access your progress dashboards or administrative panels.
           </p>
         </div>
