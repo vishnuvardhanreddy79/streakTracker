@@ -325,9 +325,18 @@ export async function getUserProgress(profileId: string): Promise<UserProgress |
 
   // Recalculate streak dynamically based on activities list and freezeDates
   const dynamicStreak = calculateStreak(activities, freezeDates);
-  let current_streak = (profile.admin_streak_override !== null && profile.admin_streak_override !== undefined)
-    ? profile.admin_streak_override
+  
+  let admin_override = profile.admin_streak_override;
+
+  // Clear override if the dynamic streak is broken (0) and user is not frozen
+  if (dynamicStreak.currentStreak === 0 && !profile.streak_frozen && !dynamicStreak.isFrozen) {
+    admin_override = null;
+  }
+
+  let current_streak = (admin_override !== null && admin_override !== undefined)
+    ? admin_override
     : dynamicStreak.currentStreak;
+
   const longest_streak = Math.max(
     profile.longest_streak ?? 0,
     dynamicStreak.longestStreak,
@@ -349,50 +358,6 @@ export async function getUserProgress(profileId: string): Promise<UserProgress |
     }
   }
 
-  // If the calculated values differ from stored, update DB/localStorage
-  const needsUpdate = profile.current_streak !== current_streak ||
-                      profile.longest_streak !== longest_streak ||
-                      profile.last_active_date !== last_active_date ||
-                      profile.streak_frozen !== streak_frozen ||
-                      profile.streak_freezes === undefined ||
-                      profile.admin_streak_override === undefined;
-
-  if (needsUpdate) {
-    if (isSupabaseConfigured && supabase) {
-      await supabase
-        .from('profiles')
-        .update({
-          current_streak,
-          longest_streak,
-          last_active_date,
-          streak_frozen,
-          streak_freezes,
-          admin_streak_override: profile.admin_streak_override ?? null
-        })
-        .eq('id', profileId);
-    } else {
-      const local = getLocalStorageData();
-      const idx = local.profiles.findIndex(p => p.id === profileId);
-      if (idx !== -1) {
-        local.profiles[idx].current_streak = current_streak;
-        local.profiles[idx].longest_streak = longest_streak;
-        local.profiles[idx].last_active_date = last_active_date;
-        local.profiles[idx].streak_frozen = streak_frozen;
-        local.profiles[idx].streak_freezes = streak_freezes;
-        local.profiles[idx].admin_streak_override = profile.admin_streak_override ?? null;
-        saveLocalStorageData(local.profiles, local.activities, local.notifications);
-      }
-    }
-    profile.current_streak = current_streak;
-    profile.longest_streak = longest_streak;
-    profile.last_active_date = last_active_date;
-    profile.streak_frozen = streak_frozen;
-    profile.streak_freezes = streak_freezes;
-    profile.admin_streak_override = profile.admin_streak_override ?? null;
-  } else {
-    profile.streak_freezes = streak_freezes;
-  }
-
   const streak: Streak = {
     currentStreak: current_streak,
     longestStreak: longest_streak,
@@ -400,15 +365,125 @@ export async function getUserProgress(profileId: string): Promise<UserProgress |
     isFrozen: streak_frozen,
   };
 
-  const result: UserProgress = { profile, activities, streak, freezeDates };
+  const updatedProfile: Profile = {
+    ...profile,
+    current_streak,
+    longest_streak,
+    last_active_date,
+    streak_frozen,
+    streak_freezes,
+    admin_streak_override: admin_override ?? null
+  };
+
+  const result: UserProgress = { profile: updatedProfile, activities, streak, freezeDates };
   setCache(cacheKey, result);
   return result;
 }
 
 // Helper to update profile's streak upon logging an activity
-async function updateProfileStreakOnActivityLog(profileId: string): Promise<void> {
+async function updateProfileStreakOnActivityLog(profileId: string, date: string): Promise<void> {
   invalidateCache(`progress_${profileId}`);
-  await getUserProgress(profileId);
+
+  let profile: Profile | null = null;
+  let activities: Activity[] = [];
+  let freezeDates: string[] = [];
+
+  if (isSupabaseConfigured && supabase) {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', profileId)
+      .single();
+    profile = profileData;
+
+    const { data: activityData } = await supabase
+      .from('activities')
+      .select('*')
+      .eq('user_id', profileId)
+      .order('date', { ascending: false });
+    activities = activityData || [];
+
+    const { data: freezeData } = await supabase
+      .from('streak_freeze_usages')
+      .select('date')
+      .eq('user_id', profileId);
+    freezeDates = (freezeData || []).map(f => f.date);
+  } else {
+    const local = getLocalStorageData();
+    profile = local.profiles.find(p => p.id === profileId) || null;
+    activities = local.activities
+      .filter(a => a.user_id === profileId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    freezeDates = local.streak_freeze_usages
+      .filter(f => f.user_id === profileId)
+      .map(f => f.date);
+  }
+
+  if (!profile) return;
+
+  const dynamicStreak = calculateStreak(activities, freezeDates);
+  let admin_override = profile.admin_streak_override;
+
+  // Clear override if the dynamic streak is broken (0) and user is not frozen
+  if (dynamicStreak.currentStreak === 0 && !profile.streak_frozen && !dynamicStreak.isFrozen) {
+    admin_override = null;
+  }
+  // Otherwise, increment the override value if the user logged a new day of activity
+  else if (admin_override !== null && admin_override !== undefined) {
+    if (!profile.last_active_date || date > profile.last_active_date) {
+      admin_override = admin_override + 1;
+    }
+  }
+
+  let current_streak = (admin_override !== null && admin_override !== undefined)
+    ? admin_override
+    : dynamicStreak.currentStreak;
+
+  const longest_streak = Math.max(
+    profile.longest_streak ?? 0,
+    dynamicStreak.longestStreak,
+    dynamicStreak.currentStreak,
+    current_streak
+  );
+
+  let last_active_date = profile.last_active_date;
+  if (!last_active_date || date > last_active_date) {
+    last_active_date = date;
+  }
+
+  let streak_frozen = profile.streak_frozen ?? false;
+  if (dynamicStreak.currentStreak > 0 || date > (profile.last_active_date || '')) {
+    streak_frozen = false;
+  }
+  const streak_freezes = profile.streak_freezes ?? 0;
+
+  if (isSupabaseConfigured && supabase) {
+    await supabase
+      .from('profiles')
+      .update({
+        current_streak,
+        longest_streak,
+        last_active_date,
+        streak_frozen,
+        streak_freezes,
+        admin_streak_override: admin_override ?? null
+      })
+      .eq('id', profileId);
+  } else {
+    const local = getLocalStorageData();
+    const idx = local.profiles.findIndex(p => p.id === profileId);
+    if (idx !== -1) {
+      local.profiles[idx].current_streak = current_streak;
+      local.profiles[idx].longest_streak = longest_streak;
+      local.profiles[idx].last_active_date = last_active_date;
+      local.profiles[idx].streak_frozen = streak_frozen;
+      local.profiles[idx].streak_freezes = streak_freezes;
+      local.profiles[idx].admin_streak_override = admin_override ?? null;
+      saveLocalStorageData(local.profiles, local.activities, local.notifications);
+    }
+  }
+
+  invalidateCache(`progress_${profileId}`);
 }
 
 export async function logActivity(
@@ -463,7 +538,7 @@ export async function logActivity(
         const { data: prof } = await supabase.from('profiles').select('points').eq('id', profileId).single();
         await supabase.from('profiles').update({ points: (prof?.points || 0) + earned }).eq('id', profileId);
 
-        await updateProfileStreakOnActivityLog(profileId);
+        await updateProfileStreakOnActivityLog(profileId, date);
         return data;
       }
       console.error('Supabase activity update failed, running localStorage fallback:', error);
@@ -487,7 +562,7 @@ export async function logActivity(
         const { data: prof } = await supabase.from('profiles').select('points').eq('id', profileId).single();
         await supabase.from('profiles').update({ points: (prof?.points || 0) + earned }).eq('id', profileId);
 
-        await updateProfileStreakOnActivityLog(profileId);
+        await updateProfileStreakOnActivityLog(profileId, date);
         return data;
       }
       console.error('Supabase activity insert failed, running localStorage fallback:', error);
@@ -534,7 +609,7 @@ export async function logActivity(
   }
 
   saveLocalStorageData(local.profiles, local.activities);
-  await updateProfileStreakOnActivityLog(profileId);
+  await updateProfileStreakOnActivityLog(profileId, date);
   return updatedActivity;
 }
 

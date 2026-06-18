@@ -452,7 +452,7 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <main className="admin-grid" style={{ flexGrow: 1, padding: "2rem", maxWidth: "1400px", width: "100%", margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem" }}>
+      <main className="admin-grid" style={{ flexGrow: 1, maxWidth: "1400px", margin: "0 auto" }}>
         {/* Left Column */}
         <section style={{ display: "flex", flexDirection: "column", gap: "1.5rem", minWidth: 0 }}>
           {/* Trainee Streaks Leaderboard */}
@@ -666,7 +666,7 @@ export default function AdminDashboard() {
                         </div>
 
                         <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "0.25rem" }}>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0.75rem", background: "rgba(0, 0, 0, 0.25)", padding: "1rem", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.04)" }}>
+                          <div className="trainee-adjustments-grid" style={{ background: "rgba(0, 0, 0, 0.25)", padding: "1rem", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.04)" }}>
                             {/* Streak */}
                             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.35rem" }}>
                               <span style={{ fontSize: "0.7rem", color: "var(--foreground-muted)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }} title="Current streak override.">
@@ -680,18 +680,14 @@ export default function AdminDashboard() {
                                   <button
                                     type="button"
                                     onClick={() => adjustLocalValue(user.id, "streak", -1)}
-                                    style={{ width: "32px", height: "32px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", transition: "background 0.2s" }}
-                                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-                                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                    className="adjust-btn"
                                   >
                                     -
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => adjustLocalValue(user.id, "streak", 1)}
-                                    style={{ width: "32px", height: "32px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", transition: "background 0.2s" }}
-                                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-                                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                    className="adjust-btn"
                                   >
                                     +
                                   </button>
@@ -712,18 +708,14 @@ export default function AdminDashboard() {
                                   <button
                                     type="button"
                                     onClick={() => adjustLocalValue(user.id, "longestStreak", -1)}
-                                    style={{ width: "32px", height: "32px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", transition: "background 0.2s" }}
-                                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-                                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                    className="adjust-btn"
                                   >
                                     -
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => adjustLocalValue(user.id, "longestStreak", 1)}
-                                    style={{ width: "32px", height: "32px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontWeight: "bold", fontSize: "1rem", transition: "background 0.2s" }}
-                                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-                                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                    className="adjust-btn"
                                   >
                                     +
                                   </button>
@@ -744,18 +736,14 @@ export default function AdminDashboard() {
                                   <button
                                     type="button"
                                     onClick={() => adjustLocalValue(user.id, "freezes", -1)}
-                                    style={{ width: "34px", height: "34px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontWeight: "bold", fontSize: "1.1rem", transition: "background 0.2s" }}
-                                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-                                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                    className="adjust-btn"
                                   >
                                     -
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => adjustLocalValue(user.id, "freezes", 1)}
-                                    style={{ width: "34px", height: "34px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontWeight: "bold", fontSize: "1.1rem", transition: "background 0.2s" }}
-                                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-                                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                    className="adjust-btn"
                                   >
                                     +
                                   </button>
@@ -776,9 +764,7 @@ export default function AdminDashboard() {
                                   <button
                                     type="button"
                                     onClick={() => adjustLocalValue(user.id, "points", -1)}
-                                    style={{ width: "34px", height: "34px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontWeight: "bold", fontSize: "1.1rem", transition: "background 0.2s" }}
-                                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-                                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                    className="adjust-btn"
                                     title="-1 point"
                                   >
                                     -
@@ -786,9 +772,7 @@ export default function AdminDashboard() {
                                   <button
                                     type="button"
                                     onClick={() => adjustLocalValue(user.id, "points", 1)}
-                                    style={{ width: "34px", height: "34px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontWeight: "bold", fontSize: "1.1rem", transition: "background 0.2s" }}
-                                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-                                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                    className="adjust-btn"
                                     title="+1 point"
                                   >
                                     +
@@ -935,6 +919,365 @@ export default function AdminDashboard() {
               )}
             </div>
           </div>
+
+          {/* Global Points Configuration */}
+          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--foreground)' }}>
+              Global Points Configuration ⚙️
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', margin: 0 }}>
+              Adjust the multiplier determining how many points are awarded per study problem logged.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flexGrow: 1 }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>
+                  Points Per Problem Count
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  className="input-field"
+                  value={pointsMultiplier}
+                  onChange={(e) => setPointsMultiplier(parseInt(e.target.value) || 10)}
+                  style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleUpdatePointsMultiplier}
+                className="btn-primary"
+                style={{ padding: '0.6rem 1.25rem', fontSize: '0.85rem', alignSelf: 'flex-end' }}
+              >
+                Save Setting
+              </button>
+            </div>
+          </div>
+
+          {/* Quiz & Challenge Builder */}
+          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '1.5rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--foreground)' }}>
+                Quiz & Challenge Builder 🧠
+              </h2>
+              <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', marginTop: '0.25rem' }}>
+                {editingQuizId ? 'Edit quiz question options and correct answer.' : 'Create multiple choice quiz challenges with automated rewards.'}
+              </p>
+            </div>
+            
+            <form onSubmit={handleQuizSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>
+                  Question Title
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. Dynamic Programming basics"
+                  value={quizTitle}
+                  onChange={(e) => setQuizTitle(e.target.value)}
+                  required
+                  style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>
+                  Description / Code Snippet
+                </label>
+                <textarea
+                  className="input-field"
+                  placeholder="e.g. What is the time complexity of the fibonacci memoized lookup?"
+                  value={quizDescription}
+                  onChange={(e) => setQuizDescription(e.target.value)}
+                  style={{ minHeight: '60px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', resize: 'vertical' }}
+                />
+              </div>
+
+              <div className="quiz-options-grid">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground-muted)' }}>
+                    Option A
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={quizOptA}
+                    onChange={(e) => setQuizOptA(e.target.value)}
+                    required
+                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground-muted)' }}>
+                    Option B
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={quizOptB}
+                    onChange={(e) => setQuizOptB(e.target.value)}
+                    required
+                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground-muted)' }}>
+                    Option C
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={quizOptC}
+                    onChange={(e) => setQuizOptC(e.target.value)}
+                    required
+                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground-muted)' }}>
+                    Option D
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={quizOptD}
+                    onChange={(e) => setQuizOptD(e.target.value)}
+                    required
+                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>
+                    Correct Option
+                  </label>
+                  <select
+                    className="input-field"
+                    value={quizCorrectOpt}
+                    onChange={(e) => setQuizCorrectOpt(e.target.value)}
+                    style={{ padding: '0.4rem', fontSize: '0.8rem', background: '#0f172a', color: '#fff' }}
+                  >
+                    <option value="A">Option A</option>
+                    <option value="B">Option B</option>
+                    <option value="C">Option C</option>
+                    <option value="D">Option D</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>
+                    Reward Type
+                  </label>
+                  <select
+                    className="input-field"
+                    value={quizRewardType}
+                    onChange={(e) => setQuizRewardType(e.target.value)}
+                    style={{ padding: '0.4rem', fontSize: '0.8rem', background: '#0f172a', color: '#fff' }}
+                  >
+                    <option value="points">Points ⭐</option>
+                    <option value="freeze">Streak Freeze ❄️</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>
+                    Reward Amount
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="1000"
+                    className="input-field"
+                    value={quizRewardAmount}
+                    onChange={(e) => setQuizRewardAmount(parseInt(e.target.value) || 50)}
+                    required
+                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ flexGrow: 1, padding: '0.6rem', fontSize: '0.85rem' }}
+                >
+                  {editingQuizId ? 'Update Challenge' : 'Publish Challenge'}
+                </button>
+                {editingQuizId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingQuizId(null);
+                      setQuizTitle('');
+                      setQuizDescription('');
+                      setQuizOptA('');
+                      setQuizOptB('');
+                      setQuizOptC('');
+                      setQuizOptD('');
+                      setQuizCorrectOpt('A');
+                      setQuizRewardType('points');
+                      setQuizRewardAmount(50);
+                    }}
+                    className="btn-secondary"
+                    style={{ padding: '0.6rem', fontSize: '0.85rem' }}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+
+              {quizSubmitSuccess && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--success)', textAlign: 'center', background: 'rgba(16, 185, 129, 0.06)', padding: '4px', borderRadius: '4px' }}>
+                  {quizSubmitSuccess}
+                </div>
+              )}
+
+              {quizSubmitError && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--danger)', textAlign: 'center', background: 'rgba(239, 68, 68, 0.06)', padding: '4px', borderRadius: '4px' }}>
+                  {quizSubmitError}
+                </div>
+              )}
+            </form>
+
+            {/* Active Challenges */}
+            <div style={{ marginTop: '1rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#fff', marginBottom: '0.5rem' }}>
+                Active Challenges (Last 24 Hours)
+              </h3>
+              {(() => {
+                const activeQuizzes = quizzes.filter(q => Date.now() < new Date(q.created_at).getTime() + 24 * 60 * 60 * 1000);
+                if (activeQuizzes.length === 0) {
+                  return (
+                    <p style={{ fontSize: '0.75rem', color: 'var(--foreground-dark)', marginBottom: '1rem' }}>
+                      No active challenges.
+                    </p>
+                  );
+                }
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '150px', overflowY: 'auto', paddingRight: '4px', marginBottom: '1rem' }}>
+                    {activeQuizzes.map(q => (
+                      <div
+                        key={q.id}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          background: selectedQuizId === q.id ? 'rgba(14, 165, 233, 0.12)' : 'rgba(14, 165, 233, 0.04)',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: '6px',
+                          border: selectedQuizId === q.id ? '1px solid var(--primary)' : '1px solid rgba(14, 165, 233, 0.15)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, paddingRight: '1rem' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {q.title}
+                          </span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--foreground-muted)' }}>
+                            Reward: {q.reward_amount} {q.reward_type} (Ans: {q.correct_option})
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleEditQuiz(q)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}
+                            title="Edit question"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteQuiz(q.id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}
+                            title="Delete question"
+                          >
+                            🗑️
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedQuizId(q.id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}
+                            title="View Analytics"
+                          >
+                            📊
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Quiz History */}
+            <div style={{ marginTop: '0.75rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.75rem' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.5rem' }}>
+                Quiz History (Expired Quizzes)
+              </h3>
+              {(() => {
+                const expiredQuizzes = quizzes.filter(q => Date.now() >= new Date(q.created_at).getTime() + 24 * 60 * 60 * 1000);
+                if (expiredQuizzes.length === 0) {
+                  return (
+                    <p style={{ fontSize: '0.75rem', color: 'var(--foreground-dark)' }}>
+                      No expired quizzes in history.
+                    </p>
+                  );
+                }
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '150px', overflowY: 'auto', paddingRight: '4px' }}>
+                    {expiredQuizzes.map(q => (
+                      <div
+                        key={q.id}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          background: selectedQuizId === q.id ? 'rgba(14, 165, 233, 0.08)' : 'rgba(255, 255, 255, 0.01)',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: '6px',
+                          border: selectedQuizId === q.id ? '1px solid var(--primary)' : '1px solid rgba(255, 255, 255, 0.03)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, paddingRight: '1rem' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--foreground-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {q.title}
+                          </span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--foreground-dark)' }}>
+                            Expired 24h+ ago (Ans: {q.correct_option})
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteQuiz(q.id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}
+                            title="Delete question"
+                          >
+                            🗑️
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedQuizId(q.id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}
+                            title="View Analytics"
+                          >
+                            📊
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
         </section>
 
         {/* Right Column */}
@@ -999,9 +1342,9 @@ export default function AdminDashboard() {
               Direct messaging and updates history with trainees.
             </p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 0, border: "1px solid var(--glass-border)", borderRadius: "10px", overflow: "hidden", background: "rgba(0,0,0,0.2)", flexGrow: 1, minHeight: "380px" }}>
+            <div className={`inbox-grid ${selectedChatUserId ? "chat-active" : ""}`} style={{ flexGrow: 1, minHeight: "380px" }}>
               {/* Left Side: Users list */}
-              <div style={{ borderRight: "1px solid var(--glass-border)", display: "flex", flexDirection: "column", background: "rgba(255,255,255,0.01)", height: "100%" }}>
+              <div className="users-list-pane">
                 <div style={{ padding: "0.5rem", borderBottom: "1px solid var(--glass-border)" }}>
                   <input
                     type="text"
@@ -1102,7 +1445,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Right Side: Chat Window */}
-              <div style={{ display: "flex", flexDirection: "column", background: "rgba(255,255,255,0.02)", height: "100%" }}>
+              <div className="chat-window-pane">
                 {(() => {
                   if (!selectedChatUserId) {
                     return (
@@ -1119,9 +1462,18 @@ export default function AdminDashboard() {
 
                   return (
                     <React.Fragment>
-                      <div style={{ padding: "0.5rem 1rem", borderBottom: "1px solid var(--glass-border)", background: "rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "#fff" }}>Chat: {chatName}</span>
-                        <span style={{ fontSize: "0.65rem", color: "var(--foreground-muted)" }}>
+                      <div style={{ padding: "0.5rem 1rem", borderBottom: "1px solid var(--glass-border)", background: "rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <button
+                            type="button"
+                            className="mobile-back-btn"
+                            onClick={() => setSelectedChatUserId(null)}
+                          >
+                            ← Back
+                          </button>
+                          <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "#fff" }}>Chat: {chatName}</span>
+                        </div>
+                        <span style={{ fontSize: "0.65rem", color: "var(--foreground-muted)", display: "inline-block" }}>
                           ID: <code style={{ fontSize: "0.6rem" }}>{selectedChatUserId}</code>
                         </span>
                       </div>

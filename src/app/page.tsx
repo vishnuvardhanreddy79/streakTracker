@@ -46,6 +46,7 @@ export default function Home() {
   // UI Navigation and Notification states
   const [activeTab, setActiveTab] = useState<'home' | 'activity' | 'challenges' | 'leaderboard' | 'messages' | 'notifications'>('home');
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   // Fetch dashboard progress, leaderboard, and challenges
   const loadDashboardData = useCallback(async (userId: string) => {
@@ -287,7 +288,7 @@ export default function Home() {
 
         {/* Top Navigation Bar */}
         {currentUser && (
-          <nav style={{ display: 'flex', gap: '0.25rem', flexGrow: 1, justifyContent: 'center' }}>
+          <nav className="desktop-only-nav" style={{ display: 'flex', gap: '0.25rem', flexGrow: 1, justifyContent: 'center' }}>
             {[
               { id: 'home', label: 'Home', icon: '🏠' },
               { id: 'activity', label: 'Activity', icon: '📈' },
@@ -326,6 +327,17 @@ export default function Home() {
 
         {/* Right side: Notification Bell, DB Status Badge & Admin Link */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {currentUser && (
+            <button
+              onClick={() => setIsMobileDrawerOpen(true)}
+              className="mobile-hamburger-btn"
+              title="Open Navigation Menu"
+            >
+              <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16m-7 6h7" />
+              </svg>
+            </button>
+          )}
           {currentUser && (
             <button
               onClick={() => setActiveTab('notifications')}
@@ -430,11 +442,7 @@ export default function Home() {
           <>
             {/* 1. HOME TAB */}
             {activeTab === 'home' && (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '300px 1fr',
-                gap: '2rem'
-              }}>
+              <div className="dashboard-layout-grid">
                 {/* Left Profile Column */}
                 <section style={{ height: 'fit-content', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', alignItems: 'center', textAlign: 'center' }}>
@@ -534,7 +542,7 @@ export default function Home() {
 
                 {/* Right Cards Column */}
                 <section style={{ display: 'flex', flexDirection: 'column', gap: '2rem', minWidth: 0 }}>
-                  <div className="dashboard-top-row" style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '2rem' }}>
+                  <div className="dashboard-top-row">
                     <StreakCard
                       streak={userProgress.streak}
                       userName={currentUser.name}
@@ -703,7 +711,7 @@ export default function Home() {
                           )}
 
                           {/* Options list */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                          <div className="quiz-options-grid">
                             {['A', 'B', 'C', 'D'].map(opt => {
                               const optLabel = quiz[`option_${opt.toLowerCase()}` as keyof Quiz] as string;
                               const isSelected = selectedOption === opt;
@@ -725,10 +733,10 @@ export default function Home() {
                               };
 
                               if (!isAnswered) {
-                                if (isSelected) {
-                                  optStyle.borderColor = 'var(--primary)';
-                                  optStyle.background = 'rgba(14, 165, 233, 0.12)';
-                                }
+                                  if (isSelected) {
+                                    optStyle.borderColor = 'var(--primary)';
+                                    optStyle.background = 'rgba(14, 165, 233, 0.12)';
+                                  }
                               } else {
                                 if (wasSelected) {
                                   optStyle.borderColor = userSub.is_correct ? 'var(--success)' : 'var(--danger)';
@@ -747,6 +755,7 @@ export default function Home() {
                                   disabled={isAnswered}
                                   onClick={() => setSelectedAnswers(prev => ({ ...prev, [quiz.id]: opt }))}
                                   style={optStyle}
+                                  className="option-btn"
                                 >
                                   <span style={{ fontWeight: 700, opacity: 0.6 }}>{opt}.</span>
                                   <span>{optLabel}</span>
@@ -847,7 +856,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div style={{ overflowX: 'auto' }}>
+                <div className="leaderboard-desktop" style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--foreground-muted)' }}>
@@ -947,6 +956,83 @@ export default function Home() {
                       })()}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile Leaderboard */}
+                <div className="leaderboard-mobile">
+                  {(() => {
+                    const ranked = [...allProfiles]
+                      .filter(p => !p.is_admin)
+                      .sort((a, b) => {
+                        const aStreak = a.current_streak ?? 0;
+                        const bStreak = b.current_streak ?? 0;
+                        if (bStreak !== aStreak) return bStreak - aStreak;
+                        const aPoints = a.points ?? 0;
+                        const bPoints = b.points ?? 0;
+                        if (bPoints !== aPoints) return bPoints - aPoints;
+                        return (a.name || '').localeCompare(b.name || '');
+                      });
+
+                    if (ranked.length === 0) {
+                      return (
+                        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--foreground-dark)' }}>
+                          No trainees registered yet.
+                        </div>
+                      );
+                    }
+
+                    return ranked.map((user, idx) => {
+                      const isSelf = user.id === currentUser?.id;
+                      const rankNum = idx + 1;
+                      let rankDisplay = `#${rankNum}`;
+                      if (rankNum === 1) rankDisplay = '🥇 #1';
+                      else if (rankNum === 2) rankDisplay = '🥈 #2';
+                      else if (rankNum === 3) rankDisplay = '🥉 #3';
+
+                      return (
+                        <div
+                          key={user.id}
+                          className="leaderboard-mobile-card"
+                          style={{
+                            borderLeft: isSelf ? '4px solid var(--primary)' : undefined,
+                            background: isSelf ? 'linear-gradient(90deg, rgba(14, 165, 233, 0.08) 0%, rgba(15, 23, 42, 0.4) 100%)' : undefined,
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--foreground-muted)' }}>
+                              {rankDisplay}
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <img
+                                src={user.avatar_url || ''}
+                                alt={user.name}
+                                style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }}
+                              />
+                              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: isSelf ? 'var(--primary)' : '#fff' }}>
+                                {user.name} {isSelf && '(You)'}
+                              </span>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', borderTop: '1px solid var(--glass-border)', paddingTop: '0.5rem', marginTop: '0.25rem' }}>
+                            <div>
+                              <span style={{ color: 'var(--foreground-dark)' }}>Streak:</span>{' '}
+                              <strong style={{ color: user.streak_frozen ? 'var(--primary)' : 'var(--streak-start)' }}>
+                                {user.streak_frozen ? '❄' : '🔥'} {user.current_streak ?? 0}
+                              </strong>
+                            </div>
+                            <div>
+                              <span style={{ color: 'var(--foreground-dark)' }}>Best:</span>{' '}
+                              <strong style={{ color: 'var(--success)' }}>{user.longest_streak ?? 0}</strong>
+                            </div>
+                            <div>
+                              <span style={{ color: 'var(--foreground-dark)' }}>Points:</span>{' '}
+                              <strong style={{ color: '#38bdf8' }}>{user.points ?? 0} ⭐</strong>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             )}
@@ -1185,6 +1271,71 @@ export default function Home() {
           )}
         </div>
       </footer>
+
+      {/* Mobile Navigation Drawer */}
+      {currentUser && (
+        <>
+          <div
+            className={`mobile-drawer-overlay ${isMobileDrawerOpen ? 'open' : ''}`}
+            onClick={() => setIsMobileDrawerOpen(false)}
+          />
+          <div className={`mobile-drawer ${isMobileDrawerOpen ? 'open' : ''}`}>
+            <div className="mobile-drawer-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>ASCEND</span>
+              </div>
+              <button
+                type="button"
+                className="mobile-drawer-close-btn"
+                onClick={() => setIsMobileDrawerOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <nav className="mobile-drawer-nav">
+              {[
+                { id: 'home', label: 'Home', icon: '🏠' },
+                { id: 'activity', label: 'Activity', icon: '📈' },
+                { id: 'challenges', label: 'Challenges', icon: '🧠' },
+                { id: 'leaderboard', label: 'Leaderboard', icon: '🏆' },
+                { id: 'messages', label: 'Messages', icon: '💬' },
+                { id: 'notifications', label: 'Notifications', icon: '🔔' }
+              ].map(tab => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id as any);
+                      setIsMobileDrawerOpen(false);
+                    }}
+                    style={{
+                      background: isActive ? 'rgba(14, 165, 233, 0.12)' : 'transparent',
+                      border: 'none',
+                      color: isActive ? 'var(--primary)' : 'var(--foreground-muted)',
+                      fontWeight: isActive ? 700 : 500,
+                      fontSize: '0.95rem',
+                      cursor: 'pointer',
+                      padding: '10px 16px',
+                      borderRadius: '8px',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      width: '100%',
+                      minHeight: '44px' // Touch target
+                    }}
+                  >
+                    <span>{tab.icon}</span>
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </>
+      )}
+
     </div>
   );
 }

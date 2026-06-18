@@ -75,7 +75,7 @@ export default function UserSelector({
                   transition: 'var(--transition-smooth)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={profile.avatar_url || ''}
@@ -85,14 +85,15 @@ export default function UserSelector({
                       height: '38px',
                       borderRadius: '50%',
                       border: '2px solid rgba(255, 255, 255, 0.1)',
-                      objectFit: 'cover'
+                      objectFit: 'cover',
+                      flexShrink: 0
                     }}
                   />
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.95rem', color: isSelected ? '#fff' : 'var(--foreground)' }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.95rem', color: isSelected ? '#fff' : 'var(--foreground)', wordBreak: 'break-word' }}>
                       {profile.name}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--foreground-muted)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--foreground-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       Joined {new Date(profile.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
                     </div>
                   </div>
@@ -132,7 +133,7 @@ export default function UserSelector({
         <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--foreground-muted)' }}>
           Create New Profile
         </h3>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <input
             type="text"
             className="input-field"
@@ -141,9 +142,9 @@ export default function UserSelector({
             onChange={(e) => setNewUserName(e.target.value)}
             disabled={isAdding}
             maxLength={30}
-            style={{ fontSize: '0.85rem' }}
+            style={{ fontSize: '0.85rem', flex: '1 1 150px' }}
           />
-          <button type="submit" className="btn-primary" disabled={isAdding} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', flexShrink: 0 }}>
+          <button type="submit" className="btn-primary" disabled={isAdding} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', flex: '1 1 auto', minHeight: '44px', justifyContent: 'center' }}>
             {isAdding ? 'Adding...' : 'Add'}
           </button>
         </div>

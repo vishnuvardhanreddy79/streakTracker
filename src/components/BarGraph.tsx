@@ -60,101 +60,107 @@ function BarGraphInner({ activities }: BarGraphProps) {
         </p>
       </div>
 
-      {/* Graph Area */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'space-between',
-        height: '180px',
-        borderBottom: '1px solid var(--glass-border)',
-        paddingBottom: '8px',
-        gap: '4px',
-        position: 'relative'
-      }}>
-        {last14DaysData.map((day, idx) => {
-          const heightPct = (day.count / maxVal) * 100;
-          const isActive = idx === activeIndex;
+      {/* Graph Area Container for Horizontal Scrolling */}
+      <div style={{ overflowX: 'auto', width: '100%', paddingBottom: '8px', scrollbarWidth: 'thin' }}>
+        {/* Graph Area */}
+        <div
+          className="bargraph-area"
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            height: '180px',
+            borderBottom: '1px solid var(--glass-border)',
+            paddingBottom: '8px',
+            gap: '4px',
+            position: 'relative'
+          }}
+        >
+          {last14DaysData.map((day, idx) => {
+            const heightPct = (day.count / maxVal) * 100;
+            const isActive = idx === activeIndex;
 
-          return (
-            <div
-              key={day.dateStr}
-              onClick={() => setSelectedDayIdx(idx)}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                flexGrow: 1,
-                cursor: 'pointer',
-                height: '100%',
-                justifyContent: 'flex-end',
-              }}
-            >
-              {/* Bar */}
+            return (
               <div
+                key={day.dateStr}
+                onClick={() => setSelectedDayIdx(idx)}
                 style={{
-                  width: '75%',
-                  maxWidth: '32px',
-                  minWidth: '12px',
-                  height: `${Math.max(heightPct, day.count > 0 ? 5 : 2)}%`,
-                  background: day.count > 0
-                    ? (isActive
-                        ? 'linear-gradient(180deg, var(--primary) 0%, #0284c7 100%)'
-                        : 'linear-gradient(180deg, rgba(14, 165, 233, 0.4) 0%, rgba(16, 185, 129, 0.4) 100%)')
-                    : 'rgba(255, 255, 255, 0.05)',
-                  borderRadius: '6px 6px 0 0',
-                  border: isActive ? '1px solid var(--primary)' : '1px solid transparent',
-                  boxShadow: isActive && day.count > 0 ? '0 0 15px var(--primary-glow)' : 'none',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  position: 'relative'
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive && day.count > 0) {
-                    e.currentTarget.style.background = 'linear-gradient(180deg, rgba(14, 165, 233, 0.7) 0%, rgba(16, 185, 129, 0.7) 100%)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive && day.count > 0) {
-                    e.currentTarget.style.background = 'linear-gradient(180deg, rgba(14, 165, 233, 0.4) 0%, rgba(16, 185, 129, 0.4) 100%)';
-                  }
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  flexGrow: 1,
+                  cursor: 'pointer',
+                  height: '100%',
+                  justifyContent: 'flex-end',
                 }}
               >
-                {/* Count badge on hover or active */}
-                {day.count > 0 && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '-24px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    color: isActive ? 'var(--primary)' : 'var(--foreground-muted)',
-                    transition: 'var(--transition-smooth)'
-                  }}>
-                    {day.count}
-                  </div>
-                )}
-              </div>
+                {/* Bar */}
+                <div
+                  style={{
+                    width: '75%',
+                    maxWidth: '32px',
+                    minWidth: '12px',
+                    height: `${Math.max(heightPct, day.count > 0 ? 5 : 2)}%`,
+                    background: day.count > 0
+                      ? (isActive
+                          ? 'linear-gradient(180deg, var(--primary) 0%, #0284c7 100%)'
+                          : 'linear-gradient(180deg, rgba(14, 165, 233, 0.4) 0%, rgba(16, 185, 129, 0.4) 100%)')
+                      : 'rgba(255, 255, 255, 0.05)',
+                    borderRadius: '6px 6px 0 0',
+                    border: isActive ? '1px solid var(--primary)' : '1px solid transparent',
+                    boxShadow: isActive && day.count > 0 ? '0 0 15px var(--primary-glow)' : 'none',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive && day.count > 0) {
+                      e.currentTarget.style.background = 'linear-gradient(180deg, rgba(14, 165, 233, 0.7) 0%, rgba(16, 185, 129, 0.7) 100%)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive && day.count > 0) {
+                      e.currentTarget.style.background = 'linear-gradient(180deg, rgba(14, 165, 233, 0.4) 0%, rgba(16, 185, 129, 0.4) 100%)';
+                    }
+                  }}
+                >
+                  {/* Count badge on hover or active */}
+                  {day.count > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '-24px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: isActive ? 'var(--primary)' : 'var(--foreground-muted)',
+                      transition: 'var(--transition-smooth)'
+                    }}>
+                      {day.count}
+                    </div>
+                  )}
+                </div>
 
-              {/* Label */}
-              <div style={{
-                fontSize: '0.7rem',
-                color: isActive ? 'var(--primary)' : 'var(--foreground-muted)',
-                fontWeight: isActive ? 700 : 400,
-                marginTop: '8px',
-                textAlign: 'center',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                width: '100%'
-              }}>
-                {day.label.split(' ')[0]}
-                <div style={{ fontSize: '0.65rem', color: 'var(--foreground-dark)' }}>
-                  {day.label.split(' ')[1]}
+                {/* Label */}
+                <div style={{
+                  fontSize: '0.7rem',
+                  color: isActive ? 'var(--primary)' : 'var(--foreground-muted)',
+                  fontWeight: isActive ? 700 : 400,
+                  marginTop: '8px',
+                  textAlign: 'center',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  width: '100%'
+                }}>
+                  {day.label.split(' ')[0]}
+                  <div style={{ fontSize: '0.65rem', color: 'var(--foreground-dark)' }}>
+                    {day.label.split(' ')[1]}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {/* Drill-down Detail Panel */}

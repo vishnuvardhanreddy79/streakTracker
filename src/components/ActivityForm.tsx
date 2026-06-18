@@ -182,9 +182,8 @@ function ActivityFormInner({ userId, userName, onLogActivity }: ActivityFormProp
           />
         </div>
 
-        {/* Task Count & Category Side-by-Side */}
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <div style={{ flex: '1 1 30%' }}>
+        <div className="form-row-flex">
+          <div className="form-col-30">
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.35rem' }}>
               Count <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
@@ -207,7 +206,7 @@ function ActivityFormInner({ userId, userName, onLogActivity }: ActivityFormProp
             )}
           </div>
 
-          <div style={{ flex: '1 1 70%' }}>
+          <div className="form-col-70">
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.35rem' }}>
               Activity Category
             </label>

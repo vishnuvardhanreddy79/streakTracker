@@ -343,9 +343,9 @@ function HeatmapInner({ activities, userName, freezeDates = [] }: HeatmapProps) 
       </div>
 
       {/* Heatmap Legend */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--foreground-muted)', borderTop: '1px solid var(--glass-border)', paddingTop: '0.75rem', marginTop: '0.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', fontSize: '0.75rem', color: 'var(--foreground-muted)', borderTop: '1px solid var(--glass-border)', paddingTop: '0.75rem', marginTop: '0.5rem' }}>
         <span>* Activity is tracked in local timezone</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#38bdf8' }} />
             <span>Streak Freeze ❄️</span>

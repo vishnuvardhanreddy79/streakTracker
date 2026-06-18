@@ -171,8 +171,8 @@ function StreakCardInner({ streak, userName, streakFreezes = 0, onUseFreeze, act
 
       {/* Streak Information fields */}
       <div style={{ flexGrow: 1, zIndex: 1 }}>
-        <div style={{ display: 'flex', gap: '2rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-          <div>
+        <div className="streak-stats-row">
+          <div className="streak-stat-item">
             <div style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Current Streak
             </div>
@@ -205,7 +205,7 @@ function StreakCardInner({ streak, userName, streakFreezes = 0, onUseFreeze, act
             </div>
           </div>
 
-          <div style={{ borderLeft: '1px solid var(--glass-border)', paddingLeft: '2rem' }}>
+          <div className="streak-stat-item">
             <div style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Longest Streak
             </div>
@@ -217,7 +217,7 @@ function StreakCardInner({ streak, userName, streakFreezes = 0, onUseFreeze, act
             </div>
           </div>
 
-          <div style={{ borderLeft: '1px solid var(--glass-border)', paddingLeft: '2rem' }}>
+          <div className="streak-stat-item">
             <div style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Freezes ❄️
             </div>
