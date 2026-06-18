@@ -10,6 +10,7 @@ export default function SignUp() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [isSupabase, setIsSupabase] = useState(false);
@@ -32,8 +33,12 @@ export default function SignUp() {
     e.preventDefault();
     setError('');
     
-    if (!name.trim() || !email.trim() || !password.trim()) {
+    if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
       setError('All fields are required');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
       return;
     }
     if (password.length < 6) {
@@ -81,6 +86,7 @@ export default function SignUp() {
           id: mockUserId,
           name: name.trim(),
           email: email.trim(),
+          password: password.trim(),
           avatar_url: avatarUrl,
           is_admin: email.trim() === 'admin@aether.com', // automatically flag admin email
           created_at: new Date().toISOString(),
@@ -184,6 +190,23 @@ export default function SignUp() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={isSubmitting}
+              minLength={6}
+            />
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.35rem' }}>
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              className="input-field"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               required
               disabled={isSubmitting}
               minLength={6}

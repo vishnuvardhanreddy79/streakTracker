@@ -21,6 +21,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   updateLastQuizSeenAt,
+  supabase,
 } from '../lib/db';
 import StreakCard from '../components/StreakCard';
 import Heatmap from '../components/Heatmap';
@@ -49,6 +50,14 @@ export default function Home() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [unseenQuizCount, setUnseenQuizCount] = useState(0);
+
+  // Change Password States
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [changePasswordError, setChangePasswordError] = useState('');
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState('');
+  const [changePasswordSubmitting, setChangePasswordSubmitting] = useState(false);
 
   // Fetch dashboard progress, leaderboard, and challenges
   const loadDashboardData = useCallback(async (userId: string) => {
@@ -242,6 +251,105 @@ export default function Home() {
     }
   }, [currentUser]);
 
+  const handleRemoveAvatar = useCallback(async () => {
+    if (!currentUser) return;
+    setAvatarUploading(true);
+    setAvatarError('');
+    try {
+      const defaultAvatarUrl = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(currentUser.name)}`;
+      await updateProfileAvatar(currentUser.id, defaultAvatarUrl);
+      setCurrentUser(prev => prev ? { ...prev, avatar_url: defaultAvatarUrl } : null);
+    } catch (err) {
+      console.error('Error removing avatar:', err);
+      setAvatarError('Failed to remove profile picture.');
+    } finally {
+      setAvatarUploading(false);
+    }
+  }, [currentUser]);
+
+  const handleChangePassword = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePasswordError('');
+    setChangePasswordSuccess('');
+
+    if (!currentPassword.trim() || !newPassword.trim() || !confirmNewPassword.trim()) {
+      setChangePasswordError('All fields are required');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setChangePasswordError('New passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setChangePasswordError('New password must be at least 6 characters');
+      return;
+    }
+
+    setChangePasswordSubmitting(true);
+
+    try {
+      if (isSupabase && supabase && currentUser?.email) {
+        // 1. Re-authenticate user to verify their current password
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: currentUser.email,
+          password: currentPassword,
+        });
+
+        if (signInError) {
+          throw new Error('Incorrect current password');
+        }
+
+        // 2. Update to the new password
+        const { error: updateError } = await supabase.auth.updateUser({
+          password: newPassword,
+        });
+
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+      } else {
+        // Mock mode password change
+        const localProfiles = localStorage.getItem('tracker_profiles');
+        const profilesList = localProfiles ? JSON.parse(localProfiles) : [];
+        const idx = profilesList.findIndex((p: { id: string }) => p.id === currentUser?.id);
+        
+        if (idx !== -1) {
+          const storedPassword = profilesList[idx].password;
+          if (storedPassword && storedPassword !== currentPassword) {
+            throw new Error('Incorrect current password');
+          }
+          
+          profilesList[idx].password = newPassword;
+          localStorage.setItem('tracker_profiles', JSON.stringify(profilesList));
+          
+          // Update tracker_session to match
+          const sessionData = localStorage.getItem('tracker_session');
+          if (sessionData) {
+            const parsedSession = JSON.parse(sessionData);
+            parsedSession.password = newPassword;
+            localStorage.setItem('tracker_session', JSON.stringify(parsedSession));
+          }
+        }
+      }
+
+      setChangePasswordSuccess('Password updated successfully!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+    } catch (err: unknown) {
+      console.error('Change password failed:', err);
+      if (err instanceof Error) {
+        setChangePasswordError(err.message);
+      } else {
+        setChangePasswordError('Failed to change password. Please try again.');
+      }
+    } finally {
+      setChangePasswordSubmitting(false);
+    }
+  }, [currentUser, currentPassword, newPassword, confirmNewPassword, isSupabase]);
+
   const [adminMessageText, setAdminMessageText] = useState('');
   const [adminMessageSending, setAdminMessageSending] = useState(false);
   const [adminMessageSuccess, setAdminMessageSuccess] = useState('');
@@ -272,6 +380,8 @@ export default function Home() {
     await logoutUser();
     router.push('/login');
   }, [router]);
+
+  const isDefaultAvatar = !currentUser?.avatar_url || currentUser.avatar_url.includes('api.dicebear.com');
 
   if (loading) {
     return (
@@ -552,29 +662,77 @@ export default function Home() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
-                      <label style={{
-                        fontSize: '0.75rem',
-                        color: 'var(--primary)',
-                        cursor: avatarUploading ? 'not-allowed' : 'pointer',
-                        border: '1px solid rgba(14, 165, 233, 0.3)',
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                        background: 'rgba(14, 165, 233, 0.05)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        transition: 'var(--transition-smooth)',
-                        opacity: avatarUploading ? 0.7 : 1,
-                      }}>
-                        <span>{avatarUploading ? '⏳ Uploading...' : '📷 Update DP'}</span>
-                        <input
-                          type="file"
-                          accept=".jpg,.jpeg,.png,.webp,.gif"
-                          onChange={handleAvatarUpload}
-                          disabled={avatarUploading}
-                          style={{ display: 'none' }}
-                        />
-                      </label>
+                      {isDefaultAvatar ? (
+                        <label style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--primary)',
+                          cursor: avatarUploading ? 'not-allowed' : 'pointer',
+                          border: '1px solid rgba(14, 165, 233, 0.3)',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          background: 'rgba(14, 165, 233, 0.05)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'var(--transition-smooth)',
+                          opacity: avatarUploading ? 0.7 : 1,
+                        }}>
+                          <span>{avatarUploading ? '⏳ Uploading...' : '📷 Upload Profile Picture'}</span>
+                          <input
+                            type="file"
+                            accept=".jpg,.jpeg,.png,.webp,.gif"
+                            onChange={handleAvatarUpload}
+                            disabled={avatarUploading}
+                            style={{ display: 'none' }}
+                          />
+                        </label>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'center' }}>
+                          <label style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--primary)',
+                            cursor: avatarUploading ? 'not-allowed' : 'pointer',
+                            border: '1px solid rgba(14, 165, 233, 0.3)',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            background: 'rgba(14, 165, 233, 0.05)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            transition: 'var(--transition-smooth)',
+                            opacity: avatarUploading ? 0.7 : 1,
+                          }}>
+                            <span>{avatarUploading ? '⏳ Uploading...' : '📷 Update Profile Picture'}</span>
+                            <input
+                              type="file"
+                              accept=".jpg,.jpeg,.png,.webp,.gif"
+                              onChange={handleAvatarUpload}
+                              disabled={avatarUploading}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
+                          <button
+                            onClick={handleRemoveAvatar}
+                            disabled={avatarUploading}
+                            style={{
+                              fontSize: '0.75rem',
+                              color: 'var(--danger)',
+                              cursor: avatarUploading ? 'not-allowed' : 'pointer',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              background: 'rgba(239, 68, 68, 0.05)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              transition: 'var(--transition-smooth)',
+                              opacity: avatarUploading ? 0.7 : 1,
+                            }}
+                          >
+                            <span>🗑️ Remove Profile Picture</span>
+                          </button>
+                        </div>
+                      )}
                       {avatarError && (
                         <span style={{ fontSize: '0.7rem', color: 'var(--danger)', marginTop: '4px' }}>
                           {avatarError}
@@ -610,6 +768,85 @@ export default function Home() {
                     >
                       Sign Out Account
                     </button>
+                  </div>
+
+                  {/* Change Password Panel */}
+                  <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      🔐 Change Password
+                    </h3>
+                    <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.25rem' }}>
+                          Current Password
+                        </label>
+                        <input
+                          type="password"
+                          className="input-field"
+                          placeholder="••••••••"
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          required
+                          disabled={changePasswordSubmitting}
+                          style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.25rem' }}>
+                          New Password
+                        </label>
+                        <input
+                          type="password"
+                          className="input-field"
+                          placeholder="••••••••"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          required
+                          disabled={changePasswordSubmitting}
+                          minLength={6}
+                          style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.25rem' }}>
+                          Confirm New Password
+                        </label>
+                        <input
+                          type="password"
+                          className="input-field"
+                          placeholder="••••••••"
+                          value={confirmNewPassword}
+                          onChange={(e) => setConfirmNewPassword(e.target.value)}
+                          required
+                          disabled={changePasswordSubmitting}
+                          minLength={6}
+                          style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                        />
+                      </div>
+
+                      {changePasswordError && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.08)', padding: '6px', borderRadius: '4px' }}>
+                          {changePasswordError}
+                        </div>
+                      )}
+
+                      {changePasswordSuccess && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--success)', background: 'rgba(16, 185, 129, 0.08)', padding: '6px', borderRadius: '4px' }}>
+                          {changePasswordSuccess}
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        className="btn-primary"
+                        disabled={changePasswordSubmitting}
+                        style={{ width: '100%', padding: '0.5rem', fontSize: '0.8rem' }}
+                      >
+                        {changePasswordSubmitting ? 'Updating...' : 'Update Password'}
+                      </button>
+                    </form>
                   </div>
                 </section>
 
