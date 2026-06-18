@@ -13,6 +13,7 @@ export interface Profile {
   points?: number;
   admin_streak_override?: number | null;
   last_quiz_seen_at?: string | null;
+  coding_profiles?: { platform: string; url: string }[] | null;
 }
 
 export interface Activity {

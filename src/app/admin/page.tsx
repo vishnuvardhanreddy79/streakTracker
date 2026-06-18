@@ -782,6 +782,41 @@ export default function AdminDashboard() {
                             </div>
                           </div>
 
+                          {/* 🔗 Coding Profiles */}
+                          {user.coding_profiles && user.coding_profiles.length > 0 && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginTop: "0.75rem", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "0.75rem", textAlign: "left" }}>
+                              <span style={{ fontSize: "0.75rem", color: "var(--foreground-muted)", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px" }}>
+                                🔗 Coding Profiles
+                              </span>
+                              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.2rem" }}>
+                                {user.coding_profiles.map((p, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={p.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn-secondary"
+                                    style={{
+                                      padding: "0.4rem 0.6rem",
+                                      fontSize: "0.75rem",
+                                      textDecoration: "none",
+                                      background: "rgba(255,255,255,0.05)",
+                                      border: "1px solid rgba(255,255,255,0.1)",
+                                      borderRadius: "6px",
+                                      color: "#fff",
+                                      display: "inline-flex",
+                                      alignItems: "center"
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+                                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                  >
+                                    {p.platform}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
                           {hasChanges && (
                             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
                               <span style={{ fontSize: "0.75rem", color: "#f59e0b", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>

@@ -608,6 +608,7 @@ export async function addProfile(name: string, email: string | null, id: string)
         streak_frozen: false,
         last_active_date: null,
         last_quiz_seen_at: nowStr,
+        coding_profiles: [],
       })
       .select()
       .single();
@@ -629,6 +630,7 @@ export async function addProfile(name: string, email: string | null, id: string)
     streak_frozen: false,
     last_active_date: null,
     last_quiz_seen_at: nowStr,
+    coding_profiles: [],
     created_at: new Date().toISOString(),
   };
 
@@ -1738,6 +1740,41 @@ export async function updateLastQuizSeenAt(userId: string): Promise<void> {
   }
 
   // Refresh progress cache
+  invalidateCache(`progress_${userId}`);
+  await getUserProgress(userId);
+}
+
+/**
+ * Save coding profile links (platform/url) to user profile.
+ */
+export async function updateCodingProfiles(
+  userId: string,
+  codingProfiles: { platform: string; url: string }[]
+): Promise<void> {
+  invalidateCache();
+  invalidateCache(`progress_${userId}`);
+
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        coding_profiles: codingProfiles
+      })
+      .eq('id', userId);
+    if (error) {
+      console.error('Error updating coding_profiles in Supabase:', error);
+      throw error;
+    }
+  } else {
+    const local = getLocalStorageData();
+    const idx = local.profiles.findIndex(p => p.id === userId);
+    if (idx !== -1) {
+      local.profiles[idx].coding_profiles = codingProfiles;
+      saveLocalStorageData(local.profiles, local.activities, local.notifications);
+    }
+  }
+
+  // Refresh cache
   invalidateCache(`progress_${userId}`);
   await getUserProgress(userId);
 }

@@ -22,6 +22,7 @@ import {
   markAllNotificationsRead,
   updateLastQuizSeenAt,
   supabase,
+  updateCodingProfiles,
 } from '../lib/db';
 import StreakCard from '../components/StreakCard';
 import Heatmap from '../components/Heatmap';
@@ -58,6 +59,15 @@ export default function Home() {
   const [changePasswordError, setChangePasswordError] = useState('');
   const [changePasswordSuccess, setChangePasswordSuccess] = useState('');
   const [changePasswordSubmitting, setChangePasswordSubmitting] = useState(false);
+
+  // Coding Profiles States
+  const [codingProfiles, setCodingProfiles] = useState<{ platform: string; url: string }[]>([]);
+  const [isAddingProfile, setIsAddingProfile] = useState(false);
+  const [editingProfileIdx, setEditingProfileIdx] = useState<number | null>(null);
+  const [profilePlatform, setProfilePlatform] = useState('LeetCode');
+  const [profileUrl, setProfileUrl] = useState('');
+  const [profileError, setProfileError] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
 
   // Fetch dashboard progress, leaderboard, and challenges
   const loadDashboardData = useCallback(async (userId: string) => {
@@ -349,6 +359,82 @@ export default function Home() {
       setChangePasswordSubmitting(false);
     }
   }, [currentUser, currentPassword, newPassword, confirmNewPassword, isSupabase]);
+
+  // Sync coding profiles from currentUser whenever currentUser changes
+  useEffect(() => {
+    if (currentUser) {
+      setCodingProfiles(currentUser.coding_profiles || []);
+    }
+  }, [currentUser]);
+
+  const handleSaveProfileLink = useCallback(async () => {
+    if (!currentUser) return;
+    setProfileError('');
+
+    const urlTrimmed = profileUrl.trim();
+    if (!urlTrimmed) {
+      setProfileError('URL must not be empty');
+      return;
+    }
+
+    // Basic URL validation
+    const isValid = urlTrimmed.startsWith('http://') || urlTrimmed.startsWith('https://');
+    if (!isValid) {
+      setProfileError('Invalid URL (must start with http:// or https://)');
+      return;
+    }
+
+    setProfileSaving(true);
+    try {
+      const updated = [...codingProfiles];
+      const newEntry = { platform: profilePlatform, url: urlTrimmed };
+      
+      if (isAddingProfile) {
+        updated.push(newEntry);
+      } else if (editingProfileIdx !== null) {
+        updated[editingProfileIdx] = newEntry;
+      }
+
+      await updateCodingProfiles(currentUser.id, updated);
+      
+      // Update local state to reflect change immediately
+      setCurrentUser(prev => prev ? { ...prev, coding_profiles: updated } : null);
+      setCodingProfiles(updated);
+
+      // Reset states
+      setIsAddingProfile(false);
+      setEditingProfileIdx(null);
+      setProfileUrl('');
+    } catch (err) {
+      console.error('Error saving coding profile:', err);
+      setProfileError('Failed to save profile link.');
+    } finally {
+      setProfileSaving(false);
+    }
+  }, [currentUser, codingProfiles, isAddingProfile, editingProfileIdx, profilePlatform, profileUrl]);
+
+  const handleRemoveProfileLink = useCallback(async () => {
+    if (!currentUser || editingProfileIdx === null) return;
+    
+    setProfileSaving(true);
+    setProfileError('');
+    try {
+      const updated = codingProfiles.filter((_, idx) => idx !== editingProfileIdx);
+      await updateCodingProfiles(currentUser.id, updated);
+
+      setCurrentUser(prev => prev ? { ...prev, coding_profiles: updated } : null);
+      setCodingProfiles(updated);
+
+      setIsAddingProfile(false);
+      setEditingProfileIdx(null);
+      setProfileUrl('');
+    } catch (err) {
+      console.error('Error removing coding profile:', err);
+      setProfileError('Failed to remove profile link.');
+    } finally {
+      setProfileSaving(false);
+    }
+  }, [currentUser, codingProfiles, editingProfileIdx]);
 
   const [adminMessageText, setAdminMessageText] = useState('');
   const [adminMessageSending, setAdminMessageSending] = useState(false);
@@ -847,6 +933,147 @@ export default function Home() {
                         {changePasswordSubmitting ? 'Updating...' : 'Update Password'}
                       </button>
                     </form>
+                  </div>
+
+                  {/* Coding Profiles Panel */}
+                  <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left' }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      🔗 Coding Profiles
+                    </h3>
+                    
+                    {/* Render existing profiles */}
+                    {codingProfiles.length === 0 && !isAddingProfile && editingProfileIdx === null && (
+                      <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)' }}>
+                        No coding profiles saved yet.
+                      </p>
+                    )}
+
+                    {codingProfiles.length > 0 && !isAddingProfile && editingProfileIdx === null && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {codingProfiles.map((p, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, marginRight: '8px' }}>
+                              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#fff' }}>{p.platform}</span>
+                              <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.7rem', color: 'var(--primary)', textDecoration: 'none', wordBreak: 'break-all' }}>
+                                {p.url}
+                              </a>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setEditingProfileIdx(idx);
+                                setProfilePlatform(p.platform);
+                                setProfileUrl(p.url);
+                                setProfileError('');
+                              }}
+                              className="adjust-btn"
+                              style={{ padding: '2px 6px', fontSize: '0.7rem', flexShrink: 0 }}
+                            >
+                              ✏️
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add / Edit Form */}
+                    {(isAddingProfile || editingProfileIdx !== null) ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'rgba(0,0,0,0.1)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff' }}>
+                          {isAddingProfile ? '➕ Add Profile' : '✏️ Edit Profile'}
+                        </span>
+                        
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--foreground-muted)', marginBottom: '0.2rem' }}>
+                            Platform
+                          </label>
+                          <select
+                            value={profilePlatform}
+                            onChange={(e) => setProfilePlatform(e.target.value)}
+                            className="input-field"
+                            style={{ fontSize: '0.8rem', padding: '6px', width: '100%', border: '1px solid var(--glass-border)', borderRadius: '6px', background: '#1e293b', color: '#fff' }}
+                          >
+                            {['LeetCode', 'GeeksForGeeks', 'HackerRank', 'CodeChef', 'Codeforces', 'TakeUForward', 'GitHub', 'Other'].map(plat => (
+                              <option key={plat} value={plat} style={{ background: '#1e293b', color: '#fff' }}>{plat}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--foreground-muted)', marginBottom: '0.2rem' }}>
+                            URL
+                          </label>
+                          <input
+                            type="text"
+                            className="input-field"
+                            placeholder="https://..."
+                            value={profileUrl}
+                            onChange={(e) => setProfileUrl(e.target.value)}
+                            style={{ fontSize: '0.8rem', padding: '6px', width: '100%', border: '1px solid var(--glass-border)', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: '#fff' }}
+                          />
+                        </div>
+
+                        {profileError && (
+                          <div style={{ fontSize: '0.7rem', color: 'var(--danger)' }}>
+                            {profileError}
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem' }}>
+                          <button
+                            onClick={handleSaveProfileLink}
+                            disabled={profileSaving}
+                            className="btn-primary"
+                            style={{ flex: 1, padding: '4px 8px', fontSize: '0.75rem' }}
+                          >
+                            Save
+                          </button>
+                          {editingProfileIdx !== null && (
+                            <button
+                              onClick={handleRemoveProfileLink}
+                              disabled={profileSaving}
+                              style={{
+                                padding: '4px 8px',
+                                fontSize: '0.75rem',
+                                color: 'var(--danger)',
+                                background: 'rgba(239, 68, 68, 0.05)',
+                                border: '1px solid rgba(239, 68, 68, 0.2)',
+                                borderRadius: '6px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Remove
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              setIsAddingProfile(false);
+                              setEditingProfileIdx(null);
+                              setProfileError('');
+                            }}
+                            disabled={profileSaving}
+                            className="btn-secondary"
+                            style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      codingProfiles.length < 3 && (
+                        <button
+                          onClick={() => {
+                            setIsAddingProfile(true);
+                            setProfilePlatform('LeetCode');
+                            setProfileUrl('');
+                            setProfileError('');
+                          }}
+                          className="btn-primary"
+                          style={{ width: '100%', padding: '0.5rem', fontSize: '0.8rem' }}
+                        >
+                          ➕ Add Profile Link
+                        </button>
+                      )
+                    )}
                   </div>
                 </section>
 
