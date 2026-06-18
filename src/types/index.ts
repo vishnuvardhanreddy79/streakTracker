@@ -12,6 +12,7 @@ export interface Profile {
   streak_freezes?: number;
   points?: number;
   admin_streak_override?: number | null;
+  last_quiz_seen_at?: string | null;
 }
 
 export interface Activity {

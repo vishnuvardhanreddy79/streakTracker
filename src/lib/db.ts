@@ -592,6 +592,8 @@ export async function addProfile(name: string, email: string | null, id: string)
   const avatar = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(name)}`;
   invalidateCache('profiles');
 
+  const nowStr = new Date().toISOString();
+
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase
       .from('profiles')
@@ -605,6 +607,7 @@ export async function addProfile(name: string, email: string | null, id: string)
         longest_streak: 0,
         streak_frozen: false,
         last_active_date: null,
+        last_quiz_seen_at: nowStr,
       })
       .select()
       .single();
@@ -625,6 +628,7 @@ export async function addProfile(name: string, email: string | null, id: string)
     longest_streak: 0,
     streak_frozen: false,
     last_active_date: null,
+    last_quiz_seen_at: nowStr,
     created_at: new Date().toISOString(),
   };
 
@@ -1704,4 +1708,38 @@ export async function getQuizSubmissionsForAdmin(): Promise<(QuizSubmission & { 
     };
   });
 }
+
+/**
+ * Update the user's last_quiz_seen_at timestamp to now.
+ */
+export async function updateLastQuizSeenAt(userId: string): Promise<void> {
+  invalidateCache();
+  invalidateCache(`progress_${userId}`);
+
+  const nowStr = new Date().toISOString();
+
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        last_quiz_seen_at: nowStr,
+      })
+      .eq('id', userId);
+    if (error) {
+      console.error('Error updating last_quiz_seen_at in Supabase:', error);
+    }
+  } else {
+    const local = getLocalStorageData();
+    const idx = local.profiles.findIndex(p => p.id === userId);
+    if (idx !== -1) {
+      local.profiles[idx].last_quiz_seen_at = nowStr;
+      saveLocalStorageData(local.profiles, local.activities, local.notifications);
+    }
+  }
+
+  // Refresh progress cache
+  invalidateCache(`progress_${userId}`);
+  await getUserProgress(userId);
+}
+
 

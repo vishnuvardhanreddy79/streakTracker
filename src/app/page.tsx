@@ -20,6 +20,7 @@ import {
   getUserNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  updateLastQuizSeenAt,
 } from '../lib/db';
 import StreakCard from '../components/StreakCard';
 import Heatmap from '../components/Heatmap';
@@ -47,6 +48,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'home' | 'activity' | 'challenges' | 'leaderboard' | 'messages' | 'notifications'>('home');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [unseenQuizCount, setUnseenQuizCount] = useState(0);
 
   // Fetch dashboard progress, leaderboard, and challenges
   const loadDashboardData = useCallback(async (userId: string) => {
@@ -68,6 +70,15 @@ export default function Home() {
         return Date.now() < expirationTime;
       });
       setQuizzes(activeQuizzes);
+
+      // Calculate unseen quiz count
+      const lastSeen = progress?.profile?.last_quiz_seen_at
+        ? new Date(progress.profile.last_quiz_seen_at).getTime()
+        : 0;
+      const unseenCount = quizList.filter(quiz => {
+        return new Date(quiz.created_at).getTime() > lastSeen;
+      }).length;
+      setUnseenQuizCount(unseenCount);
 
       const subList = await getUserSubmissions(userId);
       setSubmissions(subList);
@@ -99,6 +110,26 @@ export default function Home() {
     }
     init();
   }, [router, loadDashboardData]);
+
+  // Update last_quiz_seen_at when the Challenges tab is opened
+  useEffect(() => {
+    if (activeTab === 'challenges' && currentUser) {
+      const userId = currentUser.id;
+      async function markQuizzesSeen() {
+        try {
+          await updateLastQuizSeenAt(userId);
+          const updatedProfile = await getSessionProfile();
+          if (updatedProfile) {
+            setCurrentUser(updatedProfile);
+          }
+          setUnseenQuizCount(0);
+        } catch (err) {
+          console.error('Failed to update last_quiz_seen_at:', err);
+        }
+      }
+      markQuizzesSeen();
+    }
+  }, [activeTab, currentUser]);
 
   // Poll for notifications
   useEffect(() => {
@@ -303,6 +334,7 @@ export default function Home() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
                   style={{
+                    position: 'relative',
                     background: isActive ? 'rgba(14, 165, 233, 0.12)' : 'transparent',
                     border: 'none',
                     color: isActive ? 'var(--primary)' : 'var(--foreground-muted)',
@@ -319,6 +351,26 @@ export default function Home() {
                 >
                   <span>{tab.icon}</span>
                   <span>{tab.label}</span>
+                  {tab.id === 'challenges' && unseenQuizCount > 0 && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '-6px',
+                      right: '-6px',
+                      background: '#ef4444',
+                      color: '#fff',
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      borderRadius: '50%',
+                      width: '16px',
+                      height: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      lineHeight: 1
+                    }}>
+                      {unseenQuizCount}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -332,10 +384,31 @@ export default function Home() {
               onClick={() => setIsMobileDrawerOpen(true)}
               className="mobile-hamburger-btn"
               title="Open Navigation Menu"
+              style={{ position: 'relative' }}
             >
               <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16m-7 6h7" />
               </svg>
+              {unseenQuizCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  background: '#ef4444',
+                  color: '#fff',
+                  fontSize: '0.6rem',
+                  fontWeight: 700,
+                  borderRadius: '50%',
+                  width: '14px',
+                  height: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1
+                }}>
+                  {unseenQuizCount}
+                </span>
+              )}
             </button>
           )}
           {currentUser && (
@@ -1328,6 +1401,24 @@ export default function Home() {
                   >
                     <span>{tab.icon}</span>
                     <span>{tab.label}</span>
+                    {tab.id === 'challenges' && unseenQuizCount > 0 && (
+                      <span style={{
+                        background: '#ef4444',
+                        color: '#fff',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        borderRadius: '50%',
+                        width: '18px',
+                        height: '18px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginLeft: 'auto',
+                        lineHeight: 1
+                      }}>
+                        {unseenQuizCount}
+                      </span>
+                    )}
                   </button>
                 );
               })}
