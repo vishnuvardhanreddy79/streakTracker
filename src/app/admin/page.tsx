@@ -467,7 +467,7 @@ export default function AdminDashboard() {
             {adminProfile?.avatar_url && (
               <img src={adminProfile.avatar_url} alt="Admin" style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid rgba(255,255,255,0.2)" }} />
             )}
-            <span style={{ fontSize: "0.85rem", fontWeight: 600 }}>
+            <span className="admin-header-name" style={{ fontSize: "0.85rem", fontWeight: 600 }}>
               {adminProfile?.name ? adminProfile.name.replace(/Aether/g, "Ascend") : ""}
             </span>
           </div>
@@ -477,7 +477,7 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <main className="admin-grid" style={{ flexGrow: 1, maxWidth: "1400px", margin: "0 auto" }}>
+      <main className="admin-grid main-content" style={{ maxWidth: "1400px" }}>
         {/* Left Column */}
         <section style={{ display: "flex", flexDirection: "column", gap: "1.5rem", minWidth: 0 }}>
           {/* Trainee Streaks Leaderboard */}
@@ -606,7 +606,7 @@ export default function AdminDashboard() {
                           position: "relative"
                         }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "0.75rem" }}>
+                        <div className="admin-trainee-card-header">
                           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                             <img
                               src={user.avatar_url || ""}
@@ -847,7 +847,7 @@ export default function AdminDashboard() {
                               <span style={{ fontSize: "0.75rem", color: "#f59e0b", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
                                 ⚠️ Unsaved Changes
                               </span>
-                              <div style={{ display: "flex", gap: "0.5rem", width: "100%" }}>
+                              <div style={{ display: "flex", gap: "0.5rem", width: "100%", flexWrap: "wrap" }}>
                                 <button
                                   onClick={() => handleSaveChanges(user.id)}
                                   disabled={actionLoading === user.id}
@@ -1358,7 +1358,7 @@ export default function AdminDashboard() {
               ) : (
                 submissions.map(sub => (
                   <div key={sub.id} className="glass-panel" style={{ background: "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "12px", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="submission-feed-card-header">
                       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                         <img src={sub.avatarUrl || ""} alt={sub.userName} style={{ width: "28px", height: "28px", borderRadius: "50%", objectFit: "cover" }} />
                         <div>

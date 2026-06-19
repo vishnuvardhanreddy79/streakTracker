@@ -286,7 +286,7 @@ function ActivityFormInner({ userId, userName, onLogActivity }: ActivityFormProp
           <div style={{ fontSize: '0.75rem', color: count > 1 ? 'var(--danger)' : 'var(--foreground-dark)', marginBottom: '0.5rem' }}>
             Required when problem count is greater than 1.
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <input
               type="file"
               accept=".jpg,.jpeg,.png,.webp,.gif"

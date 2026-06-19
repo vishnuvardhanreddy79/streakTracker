@@ -610,8 +610,7 @@ html, body {
     display: none !important;
   }
   .inbox-grid:not(.chat-active) .chat-window-pane {
-    display: flex !important;
-    height: 480px;
+    display: none !important;
   }
   .mobile-back-btn {
     display: inline-flex;
@@ -736,5 +735,158 @@ html, body {
 @media (max-width: 600px) {
   .bargraph-area {
     min-width: 500px;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   MOBILE RESPONSIVENESS UTILITIES (UI-ONLY ADDITIONS)
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Streak Card Responsive Container */
+.streak-card-container {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+@media (max-width: 640px) {
+  .streak-card-container {
+    flex-direction: column !important;
+    text-align: center;
+    gap: 1.25rem !important;
+  }
+}
+
+/* Admin Header Name Hiding */
+@media (max-width: 640px) {
+  .admin-header-name {
+    display: none !important;
+  }
+}
+
+/* Main Header elements hiding */
+@media (max-width: 600px) {
+  .brand-subtitle,
+  .status-badge-text {
+    display: none !important;
+  }
+  .status-badge {
+    padding: 6px !important;
+    border-radius: 50% !important;
+  }
+}
+
+/* Admin Trainee Cards Header Stacking */
+.admin-trainee-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .admin-trainee-card-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+  .admin-trainee-card-header > div {
+    width: 100% !important;
+  }
+  .admin-trainee-card-header > div:last-child {
+    justify-content: flex-start !important;
+  }
+}
+
+/* Work Submission Card Header Wrapping */
+.submission-feed-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+@media (max-width: 480px) {
+  .submission-feed-card-header {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+}
+
+/* Leaderboard Long Name Truncation */
+.leaderboard-name-text {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+@media (max-width: 375px) {
+  .leaderboard-mobile-card > div:last-child {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+}
+
+/* Quiz Reward Badge / Title stack */
+.quiz-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 480px) {
+  .quiz-card-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem !important;
+  }
+}
+
+/* Notifications Button Stack */
+.notification-center-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+@media (max-width: 480px) {
+  .notification-center-card {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+  .notification-center-card button {
+    width: 100% !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+}
+
+/* Main Content Padding responsive layout */
+.main-content {
+  flex-grow: 1;
+  padding: 2rem;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 1rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    padding: 0.75rem !important;
   }
 }

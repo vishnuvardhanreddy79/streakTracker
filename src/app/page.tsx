@@ -507,7 +507,7 @@ export default function Home() {
             <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '0.05em', lineHeight: '1.1', color: '#fff' }}>
               ASCEND
             </span>
-            <span style={{ fontSize: '0.65rem', fontWeight: 500, color: 'var(--foreground-muted)', letterSpacing: '0.05em' }}>
+            <span className="brand-subtitle" style={{ fontSize: '0.65rem', fontWeight: 500, color: 'var(--foreground-muted)', letterSpacing: '0.05em' }}>
               by Consistency Club
             </span>
           </div>
@@ -672,25 +672,20 @@ export default function Home() {
           {isSupabase ? (
             <div className="status-badge status-badge--online">
               <span className="status-dot status-dot--online" />
-              Connected
+              <span className="status-badge-text">Connected</span>
             </div>
           ) : (
             <div className="status-badge status-badge--offline" title="Offline local storage simulation mode active">
               <span className="status-dot status-dot--offline" />
-              Offline
+              <span className="status-badge-text">Offline</span>
             </div>
           )}
         </div>
       </header>
 
       {/* Main Content Body */}
-      <main style={{
-        flexGrow: 1,
-        padding: '2rem',
+      <main className="main-content" style={{
         maxWidth: '1200px',
-        width: '100%',
-        margin: '0 auto',
-        minWidth: 0,
       }}>
         
         {dbError && (
@@ -939,7 +934,7 @@ export default function Home() {
                             </div>
                           )}
 
-                          <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem' }}>
+                          <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
                             <button
                               onClick={handleSaveProfileLink}
                               disabled={profileSaving}
@@ -1236,7 +1231,7 @@ export default function Home() {
                       
                       return (
                         <div key={quiz.id} style={{ border: '1px solid var(--glass-border)', borderRadius: '10px', padding: '1.25rem', background: 'rgba(255,255,255,0.01)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                          <div className="quiz-card-header">
                             <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#fff', margin: 0 }}>
                               {quiz.title}
                             </h3>
@@ -1320,6 +1315,8 @@ export default function Home() {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
+                              flexWrap: 'wrap',
+                              gap: '0.5rem',
                               background: userSub.is_correct ? 'rgba(16, 185, 129, 0.06)' : 'rgba(239, 68, 68, 0.06)',
                               border: userSub.is_correct ? '1px solid rgba(16, 185, 129, 0.15)' : '1px solid rgba(239, 68, 68, 0.15)',
                               borderRadius: '8px',
@@ -1471,7 +1468,7 @@ export default function Home() {
                                     alt={user.name}
                                     style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }}
                                   />
-                                  <span>{user.name}</span>
+                                  <span className="leaderboard-name-text">{user.name}</span>
                                   {isSelf && (
                                     <span style={{ fontSize: '0.65rem', padding: '1px 4px', borderRadius: '4px', background: 'var(--primary)', color: '#fff', marginLeft: '2px' }}>
                                       You
@@ -1558,7 +1555,7 @@ export default function Home() {
                                 alt={user.name}
                                 style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }}
                               />
-                              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: isSelf ? 'var(--primary)' : '#fff' }}>
+                              <span className="leaderboard-name-text" style={{ fontSize: '0.9rem', fontWeight: 700, color: isSelf ? 'var(--primary)' : '#fff' }}>
                                 {user.name} {isSelf && '(You)'}
                               </span>
                             </div>
@@ -1749,14 +1746,12 @@ export default function Home() {
                     return adminNotifs.map(notif => (
                       <div
                         key={notif.id}
+                        className="notification-center-card"
                         style={{
                           background: notif.is_read ? 'rgba(255,255,255,0.01)' : 'rgba(14, 165, 233, 0.04)',
                           border: notif.is_read ? '1px solid var(--glass-border)' : '1px solid rgba(14, 165, 233, 0.2)',
                           borderRadius: '8px',
                           padding: '1rem',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
                           gap: '1rem'
                         }}
                       >

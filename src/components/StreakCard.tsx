@@ -80,10 +80,7 @@ function StreakCardInner({ streak, userName, streakFreezes = 0, onUseFreeze, act
   };
 
   return (
-    <div className="glass-panel" style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '2rem',
+    <div className="glass-panel streak-card-container" style={{
       position: 'relative',
       overflow: 'hidden',
     }}>
