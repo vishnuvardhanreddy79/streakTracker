@@ -88,7 +88,7 @@ export default function SignUp() {
           email: email.trim(),
           password: password.trim(),
           avatar_url: avatarUrl,
-          is_admin: email.trim() === 'admin@aether.com', // automatically flag admin email
+          is_admin: email.trim() === 'Ascend1407@gmail.com', // automatically flag admin email
           created_at: new Date().toISOString(),
         };
 

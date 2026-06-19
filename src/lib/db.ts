@@ -770,7 +770,8 @@ export async function getAdminDashboardData() {
         avatarUrl: profile ? profile.avatar_url : null,
       };
     })
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 10);
 
   return {
     trainees: usersWithStreaks,
@@ -966,13 +967,40 @@ export async function adminAdjustLongestStreak(userId: string, offset: number): 
 export async function adminToggleFreezeStreak(userId: string, freeze: boolean): Promise<void> {
   invalidateCache();
 
+  // Find yesterday's date
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = getLocalDateString(yesterday);
+
+  let shouldUpdateLastActive = false;
+
+  // Retrieve current profile to check if we are unfreezing and if last_active_date is old
+  const progress = await getUserProgress(userId);
+  if (progress && progress.profile) {
+    const profile = progress.profile;
+    // Toggling freeze to false (unfreezing) when they were previously frozen
+    if (!freeze && profile.streak_frozen) {
+      const currentLastActive = profile.last_active_date;
+      if (!currentLastActive || currentLastActive < yesterdayStr) {
+        shouldUpdateLastActive = true;
+      }
+    }
+  }
+
   if (isSupabaseConfigured && supabase) {
+    const updatePayload: any = {
+      streak_frozen: freeze
+    };
+    if (shouldUpdateLastActive) {
+      updatePayload.last_active_date = yesterdayStr;
+    }
+
     await supabase
       .from('profiles')
-      .update({
-        streak_frozen: freeze
-      })
+      .update(updatePayload)
       .eq('id', userId);
+    
+    invalidateCache(`progress_${userId}`);
     return;
   }
 
@@ -981,8 +1009,13 @@ export async function adminToggleFreezeStreak(userId: string, freeze: boolean): 
   const idx = local.profiles.findIndex(p => p.id === userId);
   if (idx !== -1) {
     local.profiles[idx].streak_frozen = freeze;
+    if (shouldUpdateLastActive) {
+      local.profiles[idx].last_active_date = yesterdayStr;
+    }
     saveLocalStorageData(local.profiles, local.activities, local.notifications);
   }
+  
+  invalidateCache(`progress_${userId}`);
 }
 
 /**

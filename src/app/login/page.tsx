@@ -51,12 +51,12 @@ function LoginForm() {
     setIsSubmitting(true);
     try {
       // Check for default admin login bypass (makes local admin access work seamlessly even in Supabase mode)
-      if (email.trim() === 'admin@aether.com' && password.trim() === 'admin123') {
+      if (email.trim() === 'Ascend1407@gmail.com' && password.trim() === 'CombII2^') {
         const adminProfile = {
           id: 'user-admin',
           name: 'Ascend Admin Manager',
-          email: 'admin@aether.com',
-          avatar_url: 'https://api.dicebear.com/7.x/bottts/svg?seed=admin',
+          email: 'Ascend1407@gmail.com',
+          avatar_url: '/logo.png',
           is_admin: true,
           created_at: new Date().toISOString(),
         };
@@ -64,7 +64,7 @@ function LoginForm() {
         // Add admin user to profiles list in mock DB if not exists
         const localProfiles = localStorage.getItem('tracker_profiles');
         const profilesList = localProfiles ? JSON.parse(localProfiles) : [];
-        const adminIndex = profilesList.findIndex((p: { email?: string }) => p.email === 'admin@aether.com');
+        const adminIndex = profilesList.findIndex((p: { email?: string }) => p.email === 'Ascend1407@gmail.com');
         if (adminIndex === -1) {
           profilesList.push(adminProfile);
           localStorage.setItem('tracker_profiles', JSON.stringify(profilesList));

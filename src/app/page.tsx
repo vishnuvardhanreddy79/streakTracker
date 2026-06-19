@@ -714,66 +714,48 @@ export default function Home() {
               <div className="dashboard-layout-grid">
                 {/* Left Profile Column */}
                 <section style={{ height: 'fit-content', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', alignItems: 'center', textAlign: 'center' }}>
-                     <div style={{ position: 'relative' }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={currentUser?.avatar_url || (currentUser?.name ? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(currentUser.name)}` : '')}
-                        alt={currentUser?.name}
-                        style={{
-                          width: '90px',
-                          height: '90px',
-                          borderRadius: '50%',
-                          border: '3px solid rgba(255, 255, 255, 0.1)',
-                          boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
-                          objectFit: 'cover'
-                        }}
-                      />
-                      <div style={{
-                        position: 'absolute',
-                        bottom: '4px',
-                        right: '4px',
-                        width: '18px',
-                        height: '18px',
-                        borderRadius: '50%',
-                        background: 'var(--success)',
-                        border: '2px solid var(--bg-main)',
-                        display: 'inline-block'
-                      }} />
-                    </div>
+                  <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', textAlign: 'center' }}>
+                    
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', margin: 0, borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.75rem', width: '100%' }}>
+                      👤 My Profile
+                    </h3>
 
-                    <div>
-                      <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>{currentUser?.name}</h2>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', marginTop: '0.25rem' }}>{currentUser?.email}</p>
-                    </div>
+                    {/* Profile Picture Section */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                      <div style={{ position: 'relative' }}>
+                       {/* eslint-disable-next-line @next/next/no-img-element */}
+                       <img
+                         src={currentUser?.avatar_url || (currentUser?.name ? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(currentUser.name)}` : '')}
+                         alt={currentUser?.name}
+                         style={{
+                           width: '90px',
+                           height: '90px',
+                           borderRadius: '50%',
+                           border: '3px solid rgba(255, 255, 255, 0.1)',
+                           boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
+                           objectFit: 'cover'
+                         }}
+                       />
+                       <div style={{
+                         position: 'absolute',
+                         bottom: '4px',
+                         right: '4px',
+                         width: '18px',
+                         height: '18px',
+                         borderRadius: '50%',
+                         background: 'var(--success)',
+                         border: '2px solid var(--bg-main)',
+                         display: 'inline-block'
+                       }} />
+                      </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
-                      {isDefaultAvatar ? (
-                        <label style={{
-                          fontSize: '0.75rem',
-                          color: 'var(--primary)',
-                          cursor: avatarUploading ? 'not-allowed' : 'pointer',
-                          border: '1px solid rgba(14, 165, 233, 0.3)',
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                          background: 'rgba(14, 165, 233, 0.05)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          transition: 'var(--transition-smooth)',
-                          opacity: avatarUploading ? 0.7 : 1,
-                        }}>
-                          <span>{avatarUploading ? '⏳ Uploading...' : '📷 Upload Profile Picture'}</span>
-                          <input
-                            type="file"
-                            accept=".jpg,.jpeg,.png,.webp,.gif"
-                            onChange={handleAvatarUpload}
-                            disabled={avatarUploading}
-                            style={{ display: 'none' }}
-                          />
-                        </label>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'center' }}>
+                      <div>
+                        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', margin: 0 }}>{currentUser?.name}</h2>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', marginTop: '0.25rem', marginBottom: 0 }}>{currentUser?.email}</p>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                        {isDefaultAvatar ? (
                           <label style={{
                             fontSize: '0.75rem',
                             color: 'var(--primary)',
@@ -788,7 +770,7 @@ export default function Home() {
                             transition: 'var(--transition-smooth)',
                             opacity: avatarUploading ? 0.7 : 1,
                           }}>
-                            <span>{avatarUploading ? '⏳ Uploading...' : '📷 Update Profile Picture'}</span>
+                            <span>{avatarUploading ? '⏳ Uploading...' : '📷 Upload Profile Picture'}</span>
                             <input
                               type="file"
                               accept=".jpg,.jpeg,.png,.webp,.gif"
@@ -797,36 +779,63 @@ export default function Home() {
                               style={{ display: 'none' }}
                             />
                           </label>
-                          <button
-                            onClick={handleRemoveAvatar}
-                            disabled={avatarUploading}
-                            style={{
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'center' }}>
+                            <label style={{
                               fontSize: '0.75rem',
-                              color: 'var(--danger)',
+                              color: 'var(--primary)',
                               cursor: avatarUploading ? 'not-allowed' : 'pointer',
-                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              border: '1px solid rgba(14, 165, 233, 0.3)',
                               padding: '4px 10px',
                               borderRadius: '6px',
-                              background: 'rgba(239, 68, 68, 0.05)',
+                              background: 'rgba(14, 165, 233, 0.05)',
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '6px',
                               transition: 'var(--transition-smooth)',
                               opacity: avatarUploading ? 0.7 : 1,
-                            }}
-                          >
-                            <span>🗑️ Remove Profile Picture</span>
-                          </button>
-                        </div>
-                      )}
-                      {avatarError && (
-                        <span style={{ fontSize: '0.7rem', color: 'var(--danger)', marginTop: '4px' }}>
-                          {avatarError}
-                        </span>
-                      )}
+                            }}>
+                              <span>{avatarUploading ? '⏳ Uploading...' : '📷 Update Profile Picture'}</span>
+                              <input
+                                type="file"
+                                accept=".jpg,.jpeg,.png,.webp,.gif"
+                                onChange={handleAvatarUpload}
+                                disabled={avatarUploading}
+                                style={{ display: 'none' }}
+                              />
+                            </label>
+                            <button
+                              onClick={handleRemoveAvatar}
+                              disabled={avatarUploading}
+                              style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--danger)',
+                                cursor: avatarUploading ? 'not-allowed' : 'pointer',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                background: 'rgba(239, 68, 68, 0.05)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                transition: 'var(--transition-smooth)',
+                                opacity: avatarUploading ? 0.7 : 1,
+                              }}
+                            >
+                              <span>🗑️ Remove Profile Picture</span>
+                            </button>
+                          </div>
+                        )}
+                        {avatarError && (
+                          <span style={{ fontSize: '0.7rem', color: 'var(--danger)', marginTop: '4px' }}>
+                            {avatarError}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <div style={{ width: '100%', borderTop: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8rem', textAlign: 'left', color: 'var(--foreground-muted)', paddingTop: '1.25rem' }}>
+                    {/* Stats details */}
+                    <div style={{ width: '100%', borderTop: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8rem', textAlign: 'left', color: 'var(--foreground-muted)', paddingTop: '1rem' }}>
                       <div>
                         Joined:{' '}
                         <strong style={{ color: 'var(--foreground)' }}>
@@ -847,233 +856,237 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={handleSignOut}
-                      className="btn-secondary"
-                      style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}
-                    >
-                      Sign Out Account
-                    </button>
-                  </div>
-
-                  {/* Change Password Panel */}
-                  <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      🔐 Change Password
-                    </h3>
-                    <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.25rem' }}>
-                          Current Password
-                        </label>
-                        <input
-                          type="password"
-                          className="input-field"
-                          placeholder="••••••••"
-                          value={currentPassword}
-                          onChange={(e) => setCurrentPassword(e.target.value)}
-                          required
-                          disabled={changePasswordSubmitting}
-                          style={{ fontSize: '0.8rem', padding: '6px 10px' }}
-                        />
-                      </div>
-
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.25rem' }}>
-                          New Password
-                        </label>
-                        <input
-                          type="password"
-                          className="input-field"
-                          placeholder="••••••••"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          required
-                          disabled={changePasswordSubmitting}
-                          minLength={6}
-                          style={{ fontSize: '0.8rem', padding: '6px 10px' }}
-                        />
-                      </div>
-
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.25rem' }}>
-                          Confirm New Password
-                        </label>
-                        <input
-                          type="password"
-                          className="input-field"
-                          placeholder="••••••••"
-                          value={confirmNewPassword}
-                          onChange={(e) => setConfirmNewPassword(e.target.value)}
-                          required
-                          disabled={changePasswordSubmitting}
-                          minLength={6}
-                          style={{ fontSize: '0.8rem', padding: '6px 10px' }}
-                        />
-                      </div>
-
-                      {changePasswordError && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.08)', padding: '6px', borderRadius: '4px' }}>
-                          {changePasswordError}
-                        </div>
+                    {/* Coding Profiles Compartment */}
+                    <div style={{ width: '100%', borderTop: '1px solid var(--glass-border)', paddingTop: '1rem', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        🔗 Coding Profiles
+                      </span>
+                      
+                      {/* Render existing profiles */}
+                      {codingProfiles.length === 0 && !isAddingProfile && editingProfileIdx === null && (
+                        <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)', margin: 0 }}>
+                          No coding profiles saved yet.
+                        </p>
                       )}
 
-                      {changePasswordSuccess && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--success)', background: 'rgba(16, 185, 129, 0.08)', padding: '6px', borderRadius: '4px' }}>
-                          {changePasswordSuccess}
-                        </div>
-                      )}
-
-                      <button
-                        type="submit"
-                        className="btn-primary"
-                        disabled={changePasswordSubmitting}
-                        style={{ width: '100%', padding: '0.5rem', fontSize: '0.8rem' }}
-                      >
-                        {changePasswordSubmitting ? 'Updating...' : 'Update Password'}
-                      </button>
-                    </form>
-                  </div>
-
-                  {/* Coding Profiles Panel */}
-                  <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      🔗 Coding Profiles
-                    </h3>
-                    
-                    {/* Render existing profiles */}
-                    {codingProfiles.length === 0 && !isAddingProfile && editingProfileIdx === null && (
-                      <p style={{ fontSize: '0.8rem', color: 'var(--foreground-muted)' }}>
-                        No coding profiles saved yet.
-                      </p>
-                    )}
-
-                    {codingProfiles.length > 0 && !isAddingProfile && editingProfileIdx === null && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {codingProfiles.map((p, idx) => (
-                          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, marginRight: '8px' }}>
-                              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#fff' }}>{p.platform}</span>
-                              <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.7rem', color: 'var(--primary)', textDecoration: 'none', wordBreak: 'break-all' }}>
-                                {p.url}
-                              </a>
+                      {codingProfiles.length > 0 && !isAddingProfile && editingProfileIdx === null && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {codingProfiles.map((p, idx) => (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, marginRight: '8px' }}>
+                                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#fff' }}>{p.platform}</span>
+                                <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.7rem', color: 'var(--primary)', textDecoration: 'none', wordBreak: 'break-all' }}>
+                                  {p.url}
+                                </a>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setEditingProfileIdx(idx);
+                                  setProfilePlatform(p.platform);
+                                  setProfileUrl(p.url);
+                                  setProfileError('');
+                                }}
+                                className="adjust-btn"
+                                style={{ padding: '2px 6px', fontSize: '0.7rem', flexShrink: 0 }}
+                              >
+                                ✏️
+                              </button>
                             </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Add / Edit Form */}
+                      {(isAddingProfile || editingProfileIdx !== null) ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'rgba(0,0,0,0.1)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff' }}>
+                            {isAddingProfile ? '➕ Add Profile' : '✏️ Edit Profile'}
+                          </span>
+                          
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--foreground-muted)', marginBottom: '0.2rem' }}>
+                              Platform
+                            </label>
+                            <select
+                              value={profilePlatform}
+                              onChange={(e) => setProfilePlatform(e.target.value)}
+                              className="input-field"
+                              style={{ fontSize: '0.8rem', padding: '6px', width: '100%', border: '1px solid var(--glass-border)', borderRadius: '6px', background: '#1e293b', color: '#fff' }}
+                            >
+                              {['LeetCode', 'GeeksForGeeks', 'HackerRank', 'CodeChef', 'Codeforces', 'TakeUForward', 'GitHub', 'Other'].map(plat => (
+                                <option key={plat} value={plat} style={{ background: '#1e293b', color: '#fff' }}>{plat}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--foreground-muted)', marginBottom: '0.2rem' }}>
+                              URL
+                            </label>
+                            <input
+                              type="text"
+                              className="input-field"
+                              placeholder="https://..."
+                              value={profileUrl}
+                              onChange={(e) => setProfileUrl(e.target.value)}
+                              style={{ fontSize: '0.8rem', padding: '6px', width: '100%', border: '1px solid var(--glass-border)', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: '#fff' }}
+                            />
+                          </div>
+
+                          {profileError && (
+                            <div style={{ fontSize: '0.7rem', color: 'var(--danger)' }}>
+                              {profileError}
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem' }}>
+                            <button
+                              onClick={handleSaveProfileLink}
+                              disabled={profileSaving}
+                              className="btn-primary"
+                              style={{ flex: 1, padding: '4px 8px', fontSize: '0.75rem' }}
+                            >
+                              Save
+                            </button>
+                            {editingProfileIdx !== null && (
+                              <button
+                                onClick={handleRemoveProfileLink}
+                                disabled={profileSaving}
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '0.75rem',
+                                  color: 'var(--danger)',
+                                  background: 'rgba(239, 68, 68, 0.05)',
+                                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Remove
+                              </button>
+                            )}
                             <button
                               onClick={() => {
-                                setEditingProfileIdx(idx);
-                                setProfilePlatform(p.platform);
-                                setProfileUrl(p.url);
+                                setIsAddingProfile(false);
+                                setEditingProfileIdx(null);
                                 setProfileError('');
                               }}
-                              className="adjust-btn"
-                              style={{ padding: '2px 6px', fontSize: '0.7rem', flexShrink: 0 }}
+                              disabled={profileSaving}
+                              className="btn-secondary"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem' }}
                             >
-                              ✏️
+                              Cancel
                             </button>
                           </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Add / Edit Form */}
-                    {(isAddingProfile || editingProfileIdx !== null) ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'rgba(0,0,0,0.1)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff' }}>
-                          {isAddingProfile ? '➕ Add Profile' : '✏️ Edit Profile'}
-                        </span>
-                        
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--foreground-muted)', marginBottom: '0.2rem' }}>
-                            Platform
-                          </label>
-                          <select
-                            value={profilePlatform}
-                            onChange={(e) => setProfilePlatform(e.target.value)}
-                            className="input-field"
-                            style={{ fontSize: '0.8rem', padding: '6px', width: '100%', border: '1px solid var(--glass-border)', borderRadius: '6px', background: '#1e293b', color: '#fff' }}
-                          >
-                            {['LeetCode', 'GeeksForGeeks', 'HackerRank', 'CodeChef', 'Codeforces', 'TakeUForward', 'GitHub', 'Other'].map(plat => (
-                              <option key={plat} value={plat} style={{ background: '#1e293b', color: '#fff' }}>{plat}</option>
-                            ))}
-                          </select>
                         </div>
+                      ) : (
+                        codingProfiles.length < 3 && (
+                          <button
+                            onClick={() => {
+                              setIsAddingProfile(true);
+                              setProfilePlatform('LeetCode');
+                              setProfileUrl('');
+                              setProfileError('');
+                            }}
+                            className="btn-primary"
+                            style={{ width: '100%', padding: '0.5rem', fontSize: '0.8rem' }}
+                          >
+                            ➕ Add Profile Link
+                          </button>
+                        )
+                      )}
+                    </div>
 
+                    {/* Change Password Compartment */}
+                    <div style={{ width: '100%', borderTop: '1px solid var(--glass-border)', paddingTop: '1rem', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        🔐 Change Password
+                      </span>
+                      <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         <div>
-                          <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--foreground-muted)', marginBottom: '0.2rem' }}>
-                            URL
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.25rem' }}>
+                            Current Password
                           </label>
                           <input
-                            type="text"
+                            type="password"
                             className="input-field"
-                            placeholder="https://..."
-                            value={profileUrl}
-                            onChange={(e) => setProfileUrl(e.target.value)}
-                            style={{ fontSize: '0.8rem', padding: '6px', width: '100%', border: '1px solid var(--glass-border)', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', color: '#fff' }}
+                            placeholder="••••••••"
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            required
+                            disabled={changePasswordSubmitting}
+                            style={{ fontSize: '0.8rem', padding: '6px 10px' }}
                           />
                         </div>
 
-                        {profileError && (
-                          <div style={{ fontSize: '0.7rem', color: 'var(--danger)' }}>
-                            {profileError}
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.25rem' }}>
+                            New Password
+                          </label>
+                          <input
+                            type="password"
+                            className="input-field"
+                            placeholder="••••••••"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            required
+                            disabled={changePasswordSubmitting}
+                            minLength={6}
+                            style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.25rem' }}>
+                            Confirm New Password
+                          </label>
+                          <input
+                            type="password"
+                            className="input-field"
+                            placeholder="••••••••"
+                            value={confirmNewPassword}
+                            onChange={(e) => setConfirmNewPassword(e.target.value)}
+                            required
+                            disabled={changePasswordSubmitting}
+                            minLength={6}
+                            style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                          />
+                        </div>
+
+                        {changePasswordError && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.08)', padding: '6px', borderRadius: '4px' }}>
+                            {changePasswordError}
                           </div>
                         )}
 
-                        <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem' }}>
-                          <button
-                            onClick={handleSaveProfileLink}
-                            disabled={profileSaving}
-                            className="btn-primary"
-                            style={{ flex: 1, padding: '4px 8px', fontSize: '0.75rem' }}
-                          >
-                            Save
-                          </button>
-                          {editingProfileIdx !== null && (
-                            <button
-                              onClick={handleRemoveProfileLink}
-                              disabled={profileSaving}
-                              style={{
-                                padding: '4px 8px',
-                                fontSize: '0.75rem',
-                                color: 'var(--danger)',
-                                background: 'rgba(239, 68, 68, 0.05)',
-                                border: '1px solid rgba(239, 68, 68, 0.2)',
-                                borderRadius: '6px',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Remove
-                            </button>
-                          )}
-                          <button
-                            onClick={() => {
-                              setIsAddingProfile(false);
-                              setEditingProfileIdx(null);
-                              setProfileError('');
-                            }}
-                            disabled={profileSaving}
-                            className="btn-secondary"
-                            style={{ padding: '4px 8px', fontSize: '0.75rem' }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      codingProfiles.length < 3 && (
+                        {changePasswordSuccess && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--success)', background: 'rgba(16, 185, 129, 0.08)', padding: '6px', borderRadius: '4px' }}>
+                            {changePasswordSuccess}
+                          </div>
+                        )}
+
                         <button
-                          onClick={() => {
-                            setIsAddingProfile(true);
-                            setProfilePlatform('LeetCode');
-                            setProfileUrl('');
-                            setProfileError('');
-                          }}
+                          type="submit"
                           className="btn-primary"
+                          disabled={changePasswordSubmitting}
                           style={{ width: '100%', padding: '0.5rem', fontSize: '0.8rem' }}
                         >
-                          ➕ Add Profile Link
+                          {changePasswordSubmitting ? 'Updating...' : 'Update Password'}
                         </button>
-                      )
-                    )}
+                      </form>
+                    </div>
+
+                    {/* Sign Out Account button */}
+                    <div style={{ width: '100%', borderTop: '1px solid var(--glass-border)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                      <button
+                        onClick={handleSignOut}
+                        className="btn-secondary"
+                        style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}
+                      >
+                        Sign Out Account
+                      </button>
+                    </div>
+
                   </div>
                 </section>
 

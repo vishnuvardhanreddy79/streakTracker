@@ -33,7 +33,7 @@ function ActivityFormInner({ userId, userName, onLogActivity }: ActivityFormProp
 
   const [date, setDate] = useState(todayStr);
   const [count, setCount] = useState(1);
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState('DSA Practice');
   const [customCategory, setCustomCategory] = useState('');
   const [notes, setNotes] = useState('');
   
@@ -50,7 +50,8 @@ function ActivityFormInner({ userId, userName, onLogActivity }: ActivityFormProp
   const isCountValid = count > 0;
   const isNotesValid = notes.trim().length > 0;
   const isCategoryValid = category !== 'Other' || customCategory.trim().length > 0;
-  const isFormValid = isCountValid && isNotesValid && isCategoryValid;
+  const isFileValid = count <= 1 || file !== null;
+  const isFormValid = isCountValid && isNotesValid && isCategoryValid && isFileValid;
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setError('');
@@ -121,6 +122,11 @@ function ActivityFormInner({ userId, userName, onLogActivity }: ActivityFormProp
     const activeCategory = category === 'Other' ? customCategory.trim() : category;
     if (category === 'Other' && !activeCategory) {
       setError('Please specify a custom category');
+      return;
+    }
+
+    if (count > 1 && !file) {
+      setError('Please upload a screenshot when submitting more than 1 problem.');
       return;
     }
 
@@ -275,8 +281,11 @@ function ActivityFormInner({ userId, userName, onLogActivity }: ActivityFormProp
         {/* Image Submission Field */}
         <div>
           <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--foreground-muted)', marginBottom: '0.35rem' }}>
-            Work Screenshot (JPG, PNG, WEBP, GIF, optional)
+            Work Screenshot (JPG, PNG, WEBP, GIF, {count > 1 ? <span style={{ color: 'var(--danger)' }}>required</span> : 'optional'})
           </label>
+          <div style={{ fontSize: '0.75rem', color: count > 1 ? 'var(--danger)' : 'var(--foreground-dark)', marginBottom: '0.5rem' }}>
+            Required when problem count is greater than 1.
+          </div>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <input
               type="file"

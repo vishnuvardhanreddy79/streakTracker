@@ -242,11 +242,27 @@ export default function AdminDashboard() {
       if (field === "streak" || field === "longestStreak" || field === "freezes" || field === "points") {
         newVal = Math.max(0, newVal);
       }
+
+      let updatedStreak = currentVal.streak;
+      let updatedLongest = currentVal.longestStreak;
+
+      if (field === "streak") {
+        updatedStreak = newVal;
+        if (newVal > currentVal.longestStreak) {
+          updatedLongest = newVal;
+        }
+      } else if (field === "longestStreak") {
+        updatedLongest = newVal;
+      }
+
       return {
         ...prev,
         [userId]: {
           ...currentVal,
-          [field]: newVal,
+          streak: updatedStreak,
+          longestStreak: updatedLongest,
+          freezes: field === "freezes" ? newVal : currentVal.freezes,
+          points: field === "points" ? newVal : currentVal.points,
         },
       };
     });
@@ -272,10 +288,19 @@ export default function AdminDashboard() {
     const freezes = trainee.streak_freezes ?? 0;
     const points = trainee.points ?? 0;
 
-    const streakDiff = adjustment.streak - currentStreak;
-    const longestDiff = adjustment.longestStreak - longestStreak;
+    const adjustedStreak = adjustment.streak;
+    const adjustedLongest = Math.max(adjustment.longestStreak, adjustedStreak);
+
+    const streakDiff = adjustedStreak - currentStreak;
     const freezesDiff = adjustment.freezes - freezes;
     const pointsDiff = adjustment.points - points;
+
+    let longestDiff = 0;
+    if (adjustedLongest > adjustedStreak) {
+      longestDiff = adjustedLongest - Math.max(longestStreak, adjustedStreak);
+    } else if (adjustedLongest < longestStreak) {
+      longestDiff = adjustedLongest - longestStreak;
+    }
 
     if (streakDiff !== 0 || longestDiff !== 0 || freezesDiff !== 0 || pointsDiff !== 0) {
       setActionLoading(userId);
