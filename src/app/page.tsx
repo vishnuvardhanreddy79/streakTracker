@@ -1250,7 +1250,7 @@ export default function Home() {
                           </div>
 
                           {quiz.description && (
-                            <p style={{ fontSize: '0.82rem', color: 'var(--foreground-muted)', marginBottom: '1rem', lineHeight: '1.4' }}>
+                            <p style={{ fontSize: '0.82rem', color: 'var(--foreground-muted)', marginBottom: '1rem', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
                               {quiz.description}
                             </p>
                           )}

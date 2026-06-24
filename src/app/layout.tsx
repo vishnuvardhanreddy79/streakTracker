@@ -9,8 +9,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Ascend | Educational Progress & Streak Tracker",
-  description: "Track your daily study habits, LeetCode progress, and milestones using heatmaps, interactive graphs, and active streak challenges.",
+  title: "Ascend | Consistency Club",
+  description: "Track progress, build consistency, and grow together with Ascend.",
 };
 
 export default function RootLayout({
